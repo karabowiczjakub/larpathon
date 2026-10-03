@@ -139,6 +139,8 @@ jedynie E. Nowy pipeline zawsze zapisuje fingerprint.
 - Geometria i długości: wyłącznie **EPSG:2180**, x=easting, y=northing.
   GeoParquet z EPSG:4326 jest przeliczany na wejściu; brak CRS to błąd.
   LoD1 jest źródłem EPSG:2180, z trójkami x/y/z; jawny inny CRS jest odrzucany.
+  Paczki GUGiK 2024 deklarują CRS złożony `EPSG::2180 + EPSG::9651` (wysokości EVRF2007)
+  i `measuredHeight uom="meter"` — oba warianty są akceptowane (sprawdzane na części poziomej).
 - pvlib `get_solarposition`, `apparent_elevation`, punkt `(50.06, 19.94)`.
   Azymut zgodnie z biblioteką: N=0°, E=90°, S=180°, W=270°.
 - Ray-marching w kierunku Słońca: `h > 1.5 + d*tan(elevation)`;

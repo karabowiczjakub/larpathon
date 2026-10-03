@@ -109,7 +109,7 @@ def test_raster_keeps_trees_separate_and_tallest_obstacle(tmp_path):
         np.testing.assert_array_equal(src.read(1), height)
 
 
-def citygml(srs="urn:ogc:def:crs:EPSG::2180"):
+def citygml(srs="urn:ogc:def:crs:EPSG::2180", uom="m"):
     def surface(z):
         return f"""<gml:Polygon><gml:exterior><gml:LinearRing><gml:posList>
         10 20 {z} 20 20 {z} 20 30 {z} 10 30 {z} 10 20 {z}
@@ -117,14 +117,19 @@ def citygml(srs="urn:ogc:def:crs:EPSG::2180"):
 
     return f'''<CityModel xmlns:gml="http://www.opengis.net/gml"
     xmlns:bldg="http://www.opengis.net/citygml/building/2.0" srsName="{srs}">
-    <member><bldg:Building><bldg:measuredHeight uom="m">12.5</bldg:measuredHeight>
+    <member><bldg:Building><bldg:measuredHeight uom="{uom}">12.5</bldg:measuredHeight>
     {surface(212.5)}{surface(200)}</bldg:Building></member>
     <member><bldg:Building/></member></CityModel>'''
 
 
-def test_lod1_parser_lowest_surface(tmp_path, caplog):
+@pytest.mark.parametrize(
+    ("srs", "uom"),
+    [("urn:ogc:def:crs:EPSG::2180", "m"),
+     ("urn:ogc:def:crs,crs:EPSG::2180,crs:EPSG::9651", "meter")],  # GUGiK 2024: 2180 + EVRF2007 heights
+)
+def test_lod1_parser_lowest_surface(tmp_path, caplog, srs, uom):
     path = tmp_path / "fixture.gml"
-    path.write_text(citygml())
+    path.write_text(citygml(srs, uom))
     parsed = parse_lod1(str(path))
     assert len(parsed) == 1
     assert parsed.geometry.iloc[0].equals(box(10, 20, 20, 30))

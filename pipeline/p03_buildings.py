@@ -173,6 +173,12 @@ def _footprint(element):
     return shapely.union_all([g for z, g in surfaces if abs(z - lowest) < 1e-6])
 
 
+def _horizontal_epsg(srs: str) -> int | None:
+    """GUGiK LoD1 declares 2180 + EVRF2007 heights (EPSG:9651) as one compound CRS."""
+    crs = CRS.from_user_input(srs)
+    return (crs.sub_crs_list[0] if crs.is_compound else crs).to_epsg()
+
+
 def parse_lod1(pattern: str = "data/raw/lod1/**/*.gml") -> gpd.GeoDataFrame:
     files = sorted(glob(str(pattern), recursive=True))
     if not files:
@@ -186,7 +192,7 @@ def parse_lod1(pattern: str = "data/raw/lod1/**/*.gml") -> gpd.GeoDataFrame:
             if event == "start":
                 srs = element.get("srsName")
                 if srs and srs not in checked_crs:
-                    if CRS.from_user_input(srs).to_epsg() != 2180:
+                    if _horizontal_epsg(srs) != 2180:
                         raise ValueError(f"LoD1 must use EPSG:2180, found {srs}")
                     checked_crs.add(srs)
                 dimension = element.get("srsDimension")
@@ -201,7 +207,7 @@ def parse_lod1(pattern: str = "data/raw/lod1/**/*.gml") -> gpd.GeoDataFrame:
             else:
                 height = element.find("{*}measuredHeight")
                 value = height.text if height is not None else None
-                if height is not None and height.get("uom", "m") not in ("m", "#m"):
+                if height is not None and height.get("uom", "m") not in ("m", "#m", "meter", "metre"):
                     value = None
                 rows.append({"geometry": geometry, "measured_height": value})
             element.clear()
