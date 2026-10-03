@@ -75,7 +75,9 @@ Avoid adding UI features not required by `PLAN.md` until this flow works.
 
 ## Files
 
-Prefer working only inside templates/static/frontend files.
+Prefer working only inside `app/static/` (`index.html`, `style.css`, `app.js`, `mock/`).
+Flask serves these files as static assets; no Jinja templates are needed.
+Call the API on the same server under `/api` (no CORS setup required).
 
 Do not modify routing, environment, shade or graph implementation.
 
