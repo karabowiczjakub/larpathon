@@ -344,12 +344,13 @@ async function computeRoutes() {
   const currentReqId = ++state.reqId;
   setStatus('<span class="spinner"></span> Computing…', "loading");
 
+  const body = requestBody();
   let res, data;
   try {
     res = await fetch(`${API}/route`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody()),
+      body: JSON.stringify(body),
     });
     data = await res.json();
   } catch {
@@ -364,6 +365,7 @@ async function computeRoutes() {
   }
 
   state.lastResult = data;
+  state.lastRequest = body;
   drawRoutes(data.routes);
   renderComparison(data);
   renderCards(data);
@@ -520,6 +522,8 @@ function renderCards(data) {
         <span class="card-dot" style="background:${routeColor(r)}"></span>
         <span class="card-title">${esc(r.label)}</span>
         <span class="card-subtitle">${(m.distance_m / 1000).toFixed(1)} km · ${m.time_min} min${timeDiff}</span>
+        <button class="card-export" type="button" data-id="${r.id}"
+                title="Download this route as GPX for Komoot, Garmin Connect, Strava and other apps">⬇ GPX</button>
       </div>
       <div class="card-metrics">
         ${metricLabel("dose")}<span class="card-metric-val ${doseClass}">${dose}${doseDiff}</span>
@@ -534,6 +538,10 @@ function renderCards(data) {
     `;
 
     card.addEventListener("click", () => activateCard(r.id));
+    card.querySelector(".card-export").addEventListener("click", (e) => {
+      e.stopPropagation();                 // exporting must not switch the active route
+      exportGpx(r.id);
+    });
     container.appendChild(card);
   }
 
@@ -547,6 +555,72 @@ function activateCard(id) {
   });
   // Redraw map layers to show detailed segments for the active route
   if (state.lastResult) drawRoutes(state.lastResult.routes);
+}
+
+// ── GPX EXPORT ────────────────────────────────────────────────────
+// GPX 1.1 track without timestamps or elevation: fitness apps import it as a route to ride (not as a
+// recorded activity) and add elevation from their own maps.
+function routeToGpx(route, request) {
+  const m = route.metrics;
+  const scenario = state.scenarios.find((s) => s.id === request.scenario)?.label ?? request.scenario;
+  const name = `BiKing – ${route.label} route (${scenario}, ${request.depart_at.slice(11, 16)})`;
+  const desc = [
+    `${(m.distance_m / 1000).toFixed(1)} km`, `${m.time_min} min`, `profile ${request.profile}`,
+    m.pm25_dose_ug != null && `PM2.5 inhaled ${m.pm25_dose_ug.toFixed(1)} µg`, `poor air ${m.air_poor_min} min`,
+    m.utci_avg_c != null && `feels like ${m.utci_avg_c.toFixed(1)} °C`, `shade ${m.shade_pct.toFixed(0)}%`,
+    `high UV ${m.uv_high_min} min`, route.avoids?.length && `avoids: ${route.avoids.join("; ")}`,
+  ].filter(Boolean).join(" · ");
+  const wpts = request.points
+    .map((p, i) => `  <wpt lat="${p.lat}" lon="${p.lon}"><name>${letter(i)}</name></wpt>`).join("\n");
+  const trkpts = route.geometry.coordinates
+    .map(([lon, lat]) => `      <trkpt lat="${lat}" lon="${lon}"/>`).join("\n");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="BiKing" xmlns="http://www.topografix.com/GPX/1/1"
+     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+     xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
+  <metadata>
+    <name>${esc(name)}</name>
+    <desc>${esc(desc)}</desc>
+  </metadata>
+${wpts}
+  <trk>
+    <name>${esc(name)}</name>
+    <desc>${esc(desc)}</desc>
+    <type>cycling</type>
+    <trkseg>
+${trkpts}
+    </trkseg>
+  </trk>
+</gpx>
+`;
+}
+
+async function exportGpx(routeId) {
+  const result = state.lastResult;
+  const route = result?.routes.find((r) => r.id === routeId);
+  if (!route || !state.lastRequest) return;
+  const gpx = routeToGpx(route, state.lastRequest);
+  const { scenario, depart_at: departAt } = state.lastRequest;
+  const km = (route.metrics.distance_m / 1000).toFixed(1);
+  const fileName = `biking-${route.label.toLowerCase()}-${km}km-${scenario}-${departAt.slice(11, 16).replace(":", "")}.gpx`;
+  const file = new File([gpx], fileName, { type: "application/gpx+xml" });
+
+  // Phones: the system share sheet sends the file straight to Komoot, Garmin Connect, Strava...
+  if (window.matchMedia("(pointer: coarse)").matches && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file], title: fileName });
+      return;
+    } catch (err) {
+      if (err.name === "AbortError") return;   // the user closed the share sheet
+    }
+  }
+  const url = URL.createObjectURL(file);
+  const a = Object.assign(document.createElement("a"), { href: url, download: fileName });
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  setStatus(`⬇ ${esc(fileName)} saved — import it in Komoot, Garmin Connect, Strava or another app.`);
 }
 
 // ── DISCOMFORT MAP (GET /api/layers/shade) ────────────────────────
