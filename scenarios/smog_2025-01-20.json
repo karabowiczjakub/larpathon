@@ -1,0 +1,1 @@
+{"id": "smog_2025-01-20", "label": "Smog", "default_at": "2025-01-20T17:00:00+01:00", "hours": {"2025-01-20T17:00": {"temperature_2m": -5.0, "relative_humidity_2m": 80.0, "wind_speed_10m": 1.0, "shortwave_radiation": 10.0, "direct_normal_irradiance": 5.0, "uv_index": 0.0, "pm25_city": 100.0, "pm10_city": 150.0, "no2_city": 80.0, "stations": []}}}

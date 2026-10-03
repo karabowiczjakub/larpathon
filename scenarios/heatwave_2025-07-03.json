@@ -1,0 +1,1 @@
+{"id": "heatwave_2025-07-03", "label": "Heatwave", "default_at": "2025-07-03T14:00:00+02:00", "hours": {"2025-07-03T14:00": {"temperature_2m": 35.0, "relative_humidity_2m": 20.0, "wind_speed_10m": 5.0, "shortwave_radiation": 862.0, "direct_normal_irradiance": 853.0, "uv_index": 8.0, "pm25_city": 12.0, "pm10_city": 25.0, "no2_city": 20.0, "stations": []}}}
