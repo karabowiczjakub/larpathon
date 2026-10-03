@@ -1,0 +1,418 @@
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --color-fastest:  #6b7280;
+  --color-balanced: #7c3aed;
+  --color-cleanest: #16a34a;
+  --color-bg:       #f8fafc;
+  --color-surface:  #ffffff;
+  --color-border:   #e2e8f0;
+  --color-text:     #1e293b;
+  --color-muted:    #64748b;
+  --color-primary:  #7c3aed;
+  --color-primary-h:#5b21b6;
+  --sidebar-w:      320px;
+  --topbar-h:       52px;
+  --footer-h:       36px;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  color: var(--color-text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── TOPBAR ─────────────────────────────────────────────── */
+.topbar {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: var(--topbar-h);
+  background: var(--color-surface);
+  border-bottom: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 16px;
+  z-index: 1000;
+  box-shadow: 0 1px 4px rgba(0,0,0,.06);
+}
+
+.topbar h1 {
+  font-size: 15px;
+  font-weight: 700;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.topbar label {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-muted);
+  white-space: nowrap;
+}
+
+.topbar select,
+.topbar input[type="range"] {
+  font-size: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  background: var(--color-bg);
+  cursor: pointer;
+}
+
+.topbar select { height: 28px; }
+
+.depart-label { gap: 6px; }
+#depart { width: 100px; cursor: pointer; }
+#departOut { font-weight: 600; font-size: 12px; min-width: 36px; }
+
+/* ── LAYOUT ─────────────────────────────────────────────── */
+.layout {
+  display: flex;
+  position: fixed;
+  top: var(--topbar-h);
+  bottom: var(--footer-h);
+  left: 0; right: 0;
+}
+
+/* ── SIDEBAR ────────────────────────────────────────────── */
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  background: var(--color-surface);
+  border-right: 1px solid var(--color-border);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.sidebar-section {
+  padding: 14px 14px 10px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.sidebar-section h2 {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: var(--color-muted);
+  margin-bottom: 10px;
+}
+
+/* ── WAYPOINTS ──────────────────────────────────────────── */
+.waypoints-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.waypoints-list li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  font-size: 12px;
+}
+
+.wp-label {
+  font-weight: 700;
+  width: 18px;
+  text-align: center;
+  color: var(--color-primary);
+}
+
+.wp-coords {
+  flex: 1;
+  color: var(--color-muted);
+  font-size: 11px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.wp-remove {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-muted);
+  font-size: 14px;
+  padding: 0 2px;
+  line-height: 1;
+  border-radius: 4px;
+  transition: color .15s;
+}
+.wp-remove:hover { color: #dc2626; }
+
+.hint {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-bottom: 8px;
+  font-style: italic;
+}
+
+.optimize-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.buttons {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.btn-demo {
+  width: 100%;
+  padding: 6px 4px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px dashed var(--color-border);
+  background: none;
+  color: var(--color-muted);
+  transition: background .15s, color .15s;
+}
+.btn-demo:hover {
+  background: var(--color-bg);
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+
+.btn-primary, .btn-secondary {
+  flex: 1;
+  padding: 8px 4px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background .15s, opacity .15s;
+}
+
+.btn-primary {
+  background: var(--color-primary);
+  color: #fff;
+}
+.btn-primary:hover:not(:disabled) { background: var(--color-primary-h); }
+
+.btn-secondary {
+  background: var(--color-bg);
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+.btn-secondary:hover:not(:disabled) { background: var(--color-border); }
+
+.btn-primary:disabled, .btn-secondary:disabled {
+  opacity: .4;
+  cursor: not-allowed;
+}
+
+/* ── ROUTE CARDS ────────────────────────────────────────── */
+.route-card {
+  border: 2px solid transparent;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 8px;
+  cursor: pointer;
+  background: var(--color-bg);
+  transition: border-color .15s, box-shadow .15s;
+}
+.route-card:last-child { margin-bottom: 0; }
+.route-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
+.route-card.active { border-color: currentColor; box-shadow: 0 2px 12px rgba(0,0,0,.12); }
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.card-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.card-title {
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.card-subtitle {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.card-metrics {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 3px 8px;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.card-metric-label { color: var(--color-muted); }
+.card-metric-val   { font-weight: 600; }
+.card-metric-val.good { color: var(--color-cleanest); }
+.card-metric-val.bad  { color: #dc2626; }
+
+.card-avoids {
+  font-size: 10px;
+  color: var(--color-muted);
+  border-top: 1px solid var(--color-border);
+  padding-top: 5px;
+  margin-top: 4px;
+  line-height: 1.4;
+}
+
+/* ── MAP ────────────────────────────────────────────────── */
+#map {
+  flex: 1;
+  height: 100%;
+}
+
+/* ── FOOTER ─────────────────────────────────────────────── */
+#status {
+  position: fixed;
+  bottom: 0; left: 0; right: 0;
+  height: var(--footer-h);
+  background: var(--color-surface);
+  border-top: 1px solid var(--color-border);
+  display: flex;
+  align-items: center;
+  padding: 0 16px;
+  font-size: 11px;
+  color: var(--color-muted);
+  z-index: 1000;
+}
+
+/* Inner span carries the truncation so ellipsis works inside flex */
+#status > * {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+#status.loading { color: var(--color-primary); }
+#status.error   { color: #dc2626; }
+
+/* ── LOADING OVERLAY ────────────────────────────────────── */
+.spinner {
+  display: inline-block;
+  width: 10px; height: 10px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin .6s linear infinite;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── RESPONSIVE (mobile: sidebar at bottom) ─────────────── */
+@media (max-width: 800px) {
+  .layout {
+    flex-direction: column;
+  }
+
+  .sidebar {
+    width: 100%;
+    height: 280px;
+    border-right: none;
+    border-top: 1px solid var(--color-border);
+    order: 2;
+    flex-direction: row;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 0;
+    flex-shrink: 0;
+    scroll-snap-type: x mandatory;
+    background: #f1f5f9;
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  .sidebar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .sidebar-section {
+    min-width: 85vw;
+    border-right: 1px solid var(--color-border);
+    border-bottom: none;
+    overflow-y: auto;
+    scroll-snap-align: start;
+    background: var(--color-surface);
+  }
+
+  #map {
+    order: 1;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .topbar-controls {
+    gap: 8px;
+  }
+
+  #depart { width: 70px; }
+}
+
+/* ── LEAFLET TOOLTIPS & ERRORS ──────────────────────────── */
+#status.error {
+  background: #dc2626;
+  color: #fff;
+  font-weight: 600;
+  border-top-color: #b91c1c;
+}
+
+.segment-tooltip {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  font-weight: 600;
+  box-shadow: 0 4px 6px rgba(0,0,0,.1);
+  border-radius: 6px;
+  font-size: 11px;
+}
+
+/* ── LEAFLET MARKER LABELS ──────────────────────────────── */
+.leaflet-tooltip.wp-tooltip {
+  background: var(--color-primary);
+  color: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 20px; height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 0;
+  box-shadow: 0 1px 4px rgba(0,0,0,.3);
+}
+.leaflet-tooltip.wp-tooltip::before { display: none; }
