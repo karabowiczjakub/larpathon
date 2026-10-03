@@ -10,8 +10,8 @@ import numpy as np
 from ..contracts import Route
 from ..profiles import PROFILES, RiderProfile
 from ..providers import Modules
-from ..schemas import RouteRequest, to_local
-from . import explain, metrics, ordering
+from ..schemas import LayerQuery, RouteRequest, to_local
+from . import explain, layers, metrics, ordering
 from .costs import EdgeCostBuilder, EdgeCosts
 from .variants import DEFAULT_VARIANTS, RouteVariant
 
@@ -61,7 +61,16 @@ class Engine:
     def conditions(self, scenario: str, at: datetime | None) -> dict:
         self._check_scenario(scenario)
         ctx = self.env.get(scenario, at)
-        return {**ctx.summary(), "sun": self._sun(at or to_local(ctx.timestamp))}
+        return {**ctx.summary(), "sun": self._sun(_sun_time(scenario, at, ctx))}
+
+    def shade_layer(self, q: LayerQuery) -> dict:
+        """Shade and discomfort of the edges in a bbox, for a map overlay (roles/04 §4.4 stretch)."""
+        self._check_scenario(q.scenario)
+        ctx = self.env.get(q.scenario, q.at)
+        at = _sun_time(q.scenario, q.at, ctx)
+        costs = self.costs.build(ctx, at, self.profiles[q.profile])
+        eids, truncated = layers.edges_in_bbox(self.graph.edge_mid_lonlat, self.graph.edge_length_m, q.bbox)
+        return {**layers.feature_collection(self.graph, eids, costs), "truncated": truncated, "at": at.isoformat()}
 
     def health(self) -> dict:
         status = self.modules.status
@@ -71,7 +80,7 @@ class Engine:
             "modules": status,
             "errors": self.modules.errors,
             "edges": int(self.graph.n_edges),
-            "live_data_age_s": self._live_age(),
+            **self._live_status(),
         }
 
     # ---------- main flow ----------
@@ -80,7 +89,7 @@ class Engine:
         self._check_scenario(req.scenario)
         profile = self.profiles[req.profile]
         ctx = self.env.get(req.scenario, req.depart_at)
-        at = req.depart_at or to_local(ctx.timestamp)
+        at = _sun_time(req.scenario, req.depart_at, ctx)
         timer.lap("env")
 
         costs = self.costs.build(ctx, at, profile)
@@ -176,9 +185,23 @@ class Engine:
         s = self.shade.sun(at)
         return {"azimuth_deg": round(float(s.azimuth_deg), 1), "elevation_deg": round(float(s.elevation_deg), 1)}
 
-    def _live_age(self) -> float | None:
+    def _live_status(self) -> dict:
+        """Age of live data; None unless the live feed is actually fresh (else Env serves a fallback)."""
         try:
-            return round(float(self.env.get("live", None).data_age_s), 1)
+            ctx = self.env.get("live", None)
         except Exception:
             log.warning("live environment unavailable for /health", exc_info=True)
-            return None
+            return {"live_source": None, "live_data_age_s": None}
+        age = round(float(ctx.data_age_s), 1) if ctx.source in {"live", "mock"} else None
+        return {"live_source": ctx.source, "live_data_age_s": age}
+
+
+def _sun_time(scenario: str, at: datetime | None, ctx) -> datetime:
+    """Moment for sun and shade. A scenario is one recorded day: keep the requested clock time, take the
+    date from the conditions (Env does the same), so shade never mixes a July scenario with October sun."""
+    day = to_local(ctx.timestamp)
+    if at is None:
+        return day
+    if scenario == "live":
+        return at
+    return at.replace(year=day.year, month=day.month, day=day.day)

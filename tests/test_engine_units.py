@@ -24,8 +24,8 @@ def exposure(n, discomfort=None, reason=None, utci=30.0, pm25=10.0):
 
 
 def ctx(**kw):
-    base = dict(timestamp=datetime(2025, 7, 3, 14, tzinfo=TZ), source="mock", temperature_c=30.0, humidity_pct=30,
-                wind_ms=2.0, shortwave_wm2=800, dni_wm2=800, uv_index=7.0, pm25=10.0, pm10=20.0, no2=15.0)
+    base = {"timestamp": datetime(2025, 7, 3, 14, tzinfo=TZ), "source": "mock", "temperature_c": 30.0, "humidity_pct": 30,
+                "wind_ms": 2.0, "shortwave_wm2": 800, "dni_wm2": 800, "uv_index": 7.0, "pm25": 10.0, "pm10": 20.0, "no2": 15.0}
     return EnvironmentalContext(**{**base, **kw})
 
 
@@ -94,6 +94,18 @@ def test_eco_cost_formula():
                       exposure=exposure(2, discomfort=[0.0, 1.0]), timing_ms={})
     assert FASTEST.cost(costs, STANDARD).tolist() == [10.0, 10.0]
     assert ECO.cost(costs, STANDARD).tolist() == [10.0, 10.0 * (1 + STANDARD.eco_alpha)]
+
+
+def test_eco_cost_ignores_the_unavoidable_city_baseline():
+    """Smog everywhere (D 0.8) with one arterial (D 0.9): only the arterial's excess costs extra."""
+    disc = [0.8] * 9 + [0.9]
+    costs = EdgeCosts(time_s=np.full(10, 10.0), shade=np.zeros(10), exposure=exposure(10, discomfort=disc),
+                      timing_ms={})
+    cost = ECO.cost(costs, STANDARD)
+    assert cost[:9].tolist() == [10.0] * 9
+    assert cost[9] == pytest.approx(10.0 * (1 + STANDARD.eco_alpha * 0.5))
+    uniform = replace(costs, exposure=exposure(10, discomfort=[0.85] * 10))
+    assert ECO.cost(uniform, STANDARD).tolist() == FASTEST.cost(uniform, STANDARD).tolist()
 
 
 # ---------- ordering ----------

@@ -7,7 +7,13 @@ from zoneinfo import ZoneInfo
 import pytest
 
 from app import config
-from app.contract_checks import check_edge_exposure, check_edge_shade, check_env, check_graph, check_shade
+from app.contract_checks import (
+    check_edge_exposure,
+    check_edge_shade,
+    check_env,
+    check_graph,
+    check_shade,
+)
 from app.providers import resolve
 
 CFG = config.from_env()
@@ -57,7 +63,7 @@ def test_real_shade_matches_graph(graph):
 
 @needs_env
 def test_real_env_offline_scenario():
-    env = resolve(CFG["ENV_FACTORY"])(CFG["SCENARIO_DIR"], DATA)
+    env = resolve(CFG["ENV_FACTORY"])(CFG["SCENARIO_DIR"], DATA, refresh=False)  # no network in tests
     check_env(env)
     ids = [s["id"] for s in env.scenarios()]
     assert ids[0] == "live"

@@ -18,3 +18,10 @@ def load_shade_for_other_graph(data_dir, n_edges):
 
 def missing_env(scenario_dir, data_dir):
     raise FileNotFoundError(f"{scenario_dir}/heatwave_2025-07-03.json")
+
+
+def offline_env(scenario_dir, data_dir):
+    """The real Role 2 service without its background refresh (no network in tests)."""
+    from app.env.service import EnvironmentService
+
+    return EnvironmentService(scenario_dir, data_dir, refresh=False)

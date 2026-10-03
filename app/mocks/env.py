@@ -15,12 +15,12 @@ SCENARIOS = (
 )
 # Conditions at the scenario's default hour (live: a mild October day at 13:00).
 PEAK = {
-    "live": dict(temperature_c=14.0, humidity_pct=65, wind_ms=2.5, shortwave_wm2=350, dni_wm2=400,
-                 uv_index=2.5, pm25=15.0, pm10=24.0, no2=22.0),
-    "heatwave_2025-07-03": dict(temperature_c=34.5, humidity_pct=20, wind_ms=4.8, shortwave_wm2=862,
-                                dni_wm2=853, uv_index=8.1, pm25=12.0, pm10=21.0, no2=18.0),
-    "smog_2025-01-20": dict(temperature_c=-2.0, humidity_pct=85, wind_ms=0.8, shortwave_wm2=0, dni_wm2=0,
-                            uv_index=0.0, pm25=63.2, pm10=95.0, no2=52.0),
+    "live": {"temperature_c": 14.0, "humidity_pct": 65, "wind_ms": 2.5, "shortwave_wm2": 350, "dni_wm2": 400,
+                 "uv_index": 2.5, "pm25": 15.0, "pm10": 24.0, "no2": 22.0},
+    "heatwave_2025-07-03": {"temperature_c": 34.5, "humidity_pct": 20, "wind_ms": 4.8, "shortwave_wm2": 862,
+                                "dni_wm2": 853, "uv_index": 8.1, "pm25": 12.0, "pm10": 21.0, "no2": 18.0},
+    "smog_2025-01-20": {"temperature_c": -2.0, "humidity_pct": 85, "wind_ms": 0.8, "shortwave_wm2": 0, "dni_wm2": 0,
+                            "uv_index": 0.0, "pm25": 63.2, "pm10": 95.0, "no2": 52.0},
 }
 LIVE_DEFAULT_HOUR = 13
 

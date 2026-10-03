@@ -56,8 +56,8 @@ def _load(cfg: Mapping, name: str, real: Callable[[], Any], mock: Callable[[], A
     except Exception as e:
         if cfg["STRICT_MODULES"]:
             raise
-        if isinstance(e, ModuleNotFoundError):  # role has not delivered its code yet
-            log.warning("real %s module not found (%s), using mock", name, e)
+        if isinstance(e, (ModuleNotFoundError, FileNotFoundError)):  # code or artefacts not delivered yet
+            log.warning("real %s module not available (%s), using mock", name, e)
         else:
             log.exception("real %s module failed to load, using mock", name)
         obj = mock()

@@ -5,7 +5,7 @@ from flask import Blueprint, current_app, jsonify, request
 
 from .engine import Engine
 from .errors import InvalidJSON
-from .schemas import ConditionsQuery, RouteRequest
+from .schemas import ConditionsQuery, LayerQuery, RouteRequest
 
 bp = Blueprint("api", __name__)
 
@@ -36,6 +36,12 @@ def scenarios():
 def conditions():
     q = ConditionsQuery.model_validate(request.args.to_dict())
     return jsonify(_engine().conditions(q.scenario, q.at))
+
+
+@bp.get("/layers/shade")
+def shade_layer():
+    q = LayerQuery.model_validate(request.args.to_dict())
+    return jsonify(_engine().shade_layer(q))
 
 
 @bp.get("/health")

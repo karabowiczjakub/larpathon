@@ -4,7 +4,13 @@ from zoneinfo import ZoneInfo
 import numpy as np
 import pytest
 
-from app.contract_checks import check_edge_exposure, check_edge_shade, check_env, check_graph, check_shade
+from app.contract_checks import (
+    check_edge_exposure,
+    check_edge_shade,
+    check_env,
+    check_graph,
+    check_shade,
+)
 from app.contracts import PointOutsideArea
 from app.mocks import MockEnv, mock_exposure
 

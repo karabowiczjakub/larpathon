@@ -1,7 +1,7 @@
 """Tune the ECO weight alpha and measure latency (roles/04 §7 and the 50-route benchmark).
 
-    .venv/bin/python scripts/tune_alpha.py --pairs 30 --alphas 1 2 3 5 8
-    USE_MOCKS=1 .venv/bin/python scripts/tune_alpha.py
+    make bench                                       # 50 routes, the profile's alpha: p50/p95 latency
+    .venv/bin/python -m scripts.tune_alpha --pairs 30 --alphas 1 2 3 5 8
 
 Uses the same modules as the app (config/env vars). Goal: ECO 5-25% longer, clearly better on discomfort.
 """
@@ -11,18 +11,17 @@ import argparse
 import logging
 import sys
 from dataclasses import replace
-from pathlib import Path
 
 import numpy as np
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from app import config
+from app.contracts import NoRoute, PointOutsideArea
+from app.engine import Engine
+from app.profiles import PROFILES
+from app.providers import build_modules
+from app.schemas import RouteRequest
 
-from app import config  # noqa: E402
-from app.engine import Engine  # noqa: E402
-from app.profiles import PROFILES  # noqa: E402
-from app.providers import build_modules  # noqa: E402
-from app.schemas import RouteRequest  # noqa: E402
-
+log = logging.getLogger(__name__)
 M_PER_DEG_LAT = 111_320.0
 
 
@@ -46,8 +45,8 @@ def evaluate(modules, pairs, scenario: str, profile: str, alpha: float) -> dict:
     for a, b in pairs:
         try:
             d = engine.route(RouteRequest(points=[a, b], scenario=scenario, profile=profile))
-        except Exception as e:  # a pair outside the network etc.
-            logging.debug("skipped pair: %s", e)
+        except (PointOutsideArea, NoRoute) as e:
+            log.debug("skipped pair: %s", e)
             continue
         f, e_ = (r["metrics"] for r in d["routes"])
         c = d["comparison"]
@@ -68,7 +67,7 @@ def evaluate(modules, pairs, scenario: str, profile: str, alpha: float) -> dict:
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument("--pairs", type=int, default=30)
-    ap.add_argument("--alphas", type=float, nargs="+", default=[1, 2, 3, 5, 8])
+    ap.add_argument("--alphas", type=float, nargs="+", help="default: the profile's own alpha")
     ap.add_argument("--scenario", default="heatwave_2025-07-03")
     ap.add_argument("--profile", default="standard", choices=sorted(PROFILES))
     ap.add_argument("--min-km", type=float, default=1.5)
@@ -77,10 +76,11 @@ def main() -> None:
     args = ap.parse_args()
     logging.basicConfig(level=logging.WARNING)
 
+    alphas = args.alphas or [PROFILES[args.profile].eco_alpha]
     modules = build_modules(config.from_env())
     print(f"modules: {modules.status}  edges: {modules.graph.n_edges}  scenario: {args.scenario}")
     pairs = random_pairs(modules.graph, args.pairs, args.min_km * 1000, args.max_km * 1000, args.seed)
-    results = [r for alpha in args.alphas if (r := evaluate(modules, pairs, args.scenario, args.profile, alpha))]
+    results = [r for alpha in alphas if (r := evaluate(modules, pairs, args.scenario, args.profile, alpha))]
     if not results:
         sys.exit("no routable pairs")
     cols = list(results[0])

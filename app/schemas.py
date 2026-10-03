@@ -22,6 +22,12 @@ def to_local(dt: datetime | None) -> datetime | None:
     return dt.replace(tzinfo=TZ) if dt.tzinfo is None else dt.astimezone(TZ)
 
 
+def known_profile(v: str) -> str:
+    if v not in PROFILES:
+        raise ValueError(f"unknown profile, expected one of {sorted(PROFILES)}")
+    return v
+
+
 class Point(BaseModel):
     lat: float = Field(ge=LAT_RANGE[0], le=LAT_RANGE[1])
     lon: float = Field(ge=LON_RANGE[0], le=LON_RANGE[1])
@@ -42,9 +48,7 @@ class RouteRequest(BaseModel):
     @field_validator("profile")
     @classmethod
     def _known_profile(cls, v: str) -> str:
-        if v not in PROFILES:
-            raise ValueError(f"unknown profile, expected one of {sorted(PROFILES)}")
-        return v
+        return known_profile(v)
 
 
 class ConditionsQuery(BaseModel):
@@ -55,3 +59,26 @@ class ConditionsQuery(BaseModel):
     @classmethod
     def _local_time(cls, v: datetime | None) -> datetime | None:
         return to_local(v)
+
+
+class LayerQuery(ConditionsQuery):
+    bbox: tuple[float, float, float, float]  # "w,s,e,n" in lon/lat
+    profile: str = DEFAULT_PROFILE
+
+    @field_validator("bbox", mode="before")
+    @classmethod
+    def _parse_bbox(cls, v):
+        return v.split(",") if isinstance(v, str) else v
+
+    @field_validator("bbox")
+    @classmethod
+    def _ordered_bbox(cls, v: tuple[float, float, float, float]) -> tuple[float, float, float, float]:
+        w, s, e, n = v
+        if not (w < e and s < n):
+            raise ValueError("bbox must be w,s,e,n with w < e and s < n")
+        return v
+
+    @field_validator("profile")
+    @classmethod
+    def _known_profile(cls, v: str) -> str:
+        return known_profile(v)

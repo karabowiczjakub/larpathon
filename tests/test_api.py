@@ -230,3 +230,32 @@ def test_health(client, mock_graph):
     assert d["ok"] is True and d["mocks"] is True
     assert d["edges"] == mock_graph.n_edges
     assert set(d["modules"]) == {"graph", "shade", "env", "exposure"}
+
+
+def test_shade_layer_is_geojson_inside_bbox(client):
+    bbox = (19.92, 50.05, 19.95, 50.07)
+    r = client.get(f"/api/layers/shade?bbox={','.join(map(str, bbox))}&scenario={HEAT}&profile=asthma")
+    assert r.status_code == 200
+    d = strict_json(r)
+    assert d["type"] == "FeatureCollection" and d["truncated"] is False and 0 < len(d["features"]) < 5000
+    assert d["at"] == "2025-07-03T14:00:00+02:00"
+    eids = [f["properties"]["eid"] for f in d["features"]]
+    assert len(eids) == len(set(eids))
+    for f in d["features"]:
+        p, coords = f["properties"], f["geometry"]["coordinates"]
+        assert 0 <= p["shade"] <= 1 and 0 <= p["discomfort"] <= 1 and p["reason"] in {"ok", "heat", "air", "uv"}
+        assert len(coords) >= 2
+        mid = np.mean([coords[0], coords[-1]], axis=0)
+        assert bbox[0] <= mid[0] <= bbox[2] and bbox[1] <= mid[1] <= bbox[3]
+
+
+def test_shade_layer_keeps_one_direction_and_caps_features(client):
+    d = client.get("/api/layers/shade?bbox=19.79,49.97,20.22,50.13").get_json()
+    assert d["truncated"] is True and len(d["features"]) == 5000
+
+
+@pytest.mark.parametrize("query", ["", "bbox=19.9,50.0,20.0", "bbox=a,b,c,d", "bbox=19.95,50.06,19.90,50.07",
+                                   "bbox=19.9,50.0,20.0,50.1&profile=cyborg", "bbox=19.9,50.0,20.0,50.1&scenario=volcano"])
+def test_shade_layer_bad_query_400(client, query):
+    r = client.get(f"/api/layers/shade?{query}")
+    assert r.status_code == 400 and r.get_json()["error"] == "validation"

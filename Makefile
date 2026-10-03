@@ -2,7 +2,7 @@ PY ?= .venv/bin/python
 PYTHON ?= $(PY)
 PORT ?= 8000
 
-.PHONY: dev mock demo test
+.PHONY: dev mock demo test bench
 
 dev:  ## Flask dev server with reload (real modules, mock fallback)
 	$(PY) -m flask --app app:create_app run --debug --port $(PORT)
@@ -15,6 +15,9 @@ demo:  ## one process, threads; never several workers (graph and shade live in R
 
 test:
 	$(PY) -m pytest -q
+
+bench:  ## 50 random A->B routes on the current modules: p50/p95 latency and ECO vs FASTEST
+	$(PY) -m scripts.tune_alpha --pairs 50
 
 .PHONY: shade
 shade:
