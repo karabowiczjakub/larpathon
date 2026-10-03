@@ -31,6 +31,23 @@
 | networkx A* (heurystyka euklidesowa) | 504 ms | **10× wolniej** niż scipy |
 | networkx Dijkstra | 1077 ms | 22× wolniej |
 
+### 2.1 Pipeline z tego pliku — uruchomiony end-to-end (3.10.2026)
+
+Kod z sekcji 4 i 5 został złożony 1:1 i uruchomiony na `malopolskie-latest.osm.pbf`:
+
+| Etap | Wynik |
+|---|---|
+| Filtr rowerowy (krok 1) | 99 582 dróg, 450 012 węzłów; 129 s łącznie z zapisem węzłów |
+| Graf po przycięciu do granicy + `largest_component(strongly=True)` | **76 152 węzłów, 175 621 krawędzi** (3,4× mniej niż bez filtra) |
+| Po deduplikacji (u,v) → artefakty | **E = 174 115**; cały `graph_build.py`: **263 s** |
+| `RoutingGraph.load` | 0,2 s |
+| **Trasa A→B + geometria, 30 losowych par** | **p50 17 ms, p95 20 ms** |
+| Trasa przez 5 punktów | 58 ms |
+| `tests/test_graph.py` (sekcja 7) | **5/5 passed** |
+| Mix `highway` po filtrze | service 67 k, residential 41 k, path 20 k, footway 19 k (tylko z `bicycle=yes/designated`), tertiary 9 k |
+
+Wniosek: FASTEST + ECO na żądanie to ~40 ms routingu — zapas na wszystko inne. `service` to wciąż 39% krawędzi (dojazdy, podwórka); jeśli trasy będą „kluczyć" po podwórkach, dodaj do `keep()` odrzucanie `service=driveway` albo karę kosztu dla `service` w Backendzie.
+
 **Decyzja: Dijkstra ze `scipy.sparse.csgraph` (C), nie A* w Pythonie/networkx.** A* ma przewagę asymptotyczną, ale implementacja w czystym Pythonie przegrywa z Dijkstrą w C o rząd wielkości. Na slajdzie: „zmierzyliśmy: A* (networkx) 504 ms vs Dijkstra (scipy CSR) 48 ms".
 
 ---
