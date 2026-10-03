@@ -65,9 +65,8 @@ Use the caching/preprocessing strategy from `PLAN.md`.
 
 Expose a small interface that provides the shade information required by routing.
 
-Keep edge identity compatible with Routing:
-
-`(u, v, key)` / project edge identifier.
+Keep edge identity compatible with Routing: index every per-edge array by `eid`, in the row order of
+`data/processed/edges.parquet` (see `roles/01_graph_routing.md`), not by `(u, v, key)`.
 
 ## Parallel development
 

@@ -46,11 +46,10 @@ Routing should work from inputs such as:
 
 Use the exact contracts defined by the project and `PLAN.md`.
 
-For `MultiDiGraph`, preserve exact edge identity:
+Edge identity is `eid` (see `roles/01_graph_routing.md`): when building the graph, keep only the shortest
+edge per `(u, v)` pair (scipy sums duplicate `(u, v)` entries), then number edges `0..E-1` in `edges.parquet`.
 
-`(u, v, key)`
-
-Do not assume `(u, v)` uniquely identifies an edge.
+Every per-edge array in the project (shade, exposure, costs) uses this `eid` order. Do not change it after the graph freeze.
 
 ## Outputs
 
