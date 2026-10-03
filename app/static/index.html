@@ -39,15 +39,25 @@
       </label>
     </div>
     <div class="topbar-actions">
-      <button id="themeBtn" class="cvd-btn" type="button" aria-pressed="false" title="Switch to dark mode">🌙</button>
+      <button id="themeBtn" class="cvd-btn" type="button" aria-pressed="false" aria-label="Dark mode"
+              title="Switch to dark mode">🌙</button>
       <div class="cvd">
-        <button id="cvdBtn" class="cvd-btn" type="button" aria-expanded="false" aria-controls="cvdPanel"
-                title="Colour options for colour-blind users">👁 Colour vision</button>
-        <div id="cvdPanel" class="cvd-panel" role="dialog" aria-label="Colour options for colour-blind users" hidden>
-          <p class="cvd-title">Colours for colour-blind users</p>
-          <div id="cvdOptions"></div>
-          <p class="cvd-note">Changes the route colours, the discomfort scale and the map. The fastest route is
-            always dashed, the healthier one solid.</p>
+        <button id="a11yBtn" class="cvd-btn" type="button" aria-expanded="false" aria-controls="a11yPanel"
+                title="Colours, text size, contrast and motion">♿ Accessibility</button>
+        <div id="a11yPanel" class="cvd-panel" role="dialog" aria-label="Accessibility options" hidden>
+          <p class="cvd-title" id="cvdTitle">Colours for colour-blind users</p>
+          <div id="cvdOptions" role="radiogroup" aria-labelledby="cvdTitle"></div>
+          <p class="cvd-title" id="textSizeTitle">Text size</p>
+          <div class="a11y-chips" role="radiogroup" aria-labelledby="textSizeTitle">
+            <label class="a11y-chip"><input type="radio" name="textSize" value="1" checked /> <span>A</span></label>
+            <label class="a11y-chip"><input type="radio" name="textSize" value="1.2" /> <span class="a11y-chip-lg">A+</span></label>
+            <label class="a11y-chip"><input type="radio" name="textSize" value="1.4" /> <span class="a11y-chip-xl">A++</span></label>
+          </div>
+          <p class="cvd-title">Display</p>
+          <label class="a11y-toggle"><input type="checkbox" id="contrastToggle" /> High contrast: thicker lines, stronger text</label>
+          <label class="a11y-toggle"><input type="checkbox" id="motionToggle" /> Reduce motion: no animations</label>
+          <p class="cvd-note">The fastest route is always dashed and the healthier one solid, so they differ without
+            colour too. Your choices are remembered in this browser.</p>
         </div>
       </div>
     </div>
@@ -87,20 +97,30 @@
       </section>
 
       <section class="sidebar-section" id="comparisonSection" style="display:none">
-        <h2>Healthier vs fastest</h2>
+        <div class="section-head">
+          <h2>Healthier vs fastest</h2>
+          <button id="speakBtn" class="speak-btn" type="button" hidden aria-pressed="false">🔊 Read aloud</button>
+        </div>
+        <div id="healthTips" class="health-tips"></div>
         <div id="comparison"></div>
       </section>
 
       <section class="sidebar-section" id="cardsSection" style="display:none">
         <h2>Routes</h2>
         <div id="cards"></div>
+        <details class="glossary">
+          <summary>What do these numbers mean?</summary>
+          <dl id="glossary"></dl>
+        </details>
       </section>
     </aside>
 
-    <div id="map"></div>
+    <div id="map" role="region"
+         aria-label="Map of Kraków. Click to add route points, or use Load demo route. Arrow keys move the map, plus and minus zoom."></div>
   </main>
 
   <footer id="status"><span>📍 Click the map to add a start point.</span></footer>
+  <div id="srLive" class="sr-only" aria-live="polite" aria-atomic="true"></div>
 
   <div id="loader" class="loader" hidden aria-live="polite">
     <div class="loader-card">

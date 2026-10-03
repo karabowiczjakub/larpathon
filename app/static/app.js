@@ -84,6 +84,23 @@ const PALETTES = {
 };
 const CVD_KEY = "biking.colourVision";
 const THEME_KEY = "biking.theme";
+const TEXT_KEY = "biking.textSize";
+const CONTRAST_KEY = "biking.contrast";
+const MOTION_KEY = "biking.motion";
+
+const highContrast = () => document.documentElement.dataset.contrast === "high";
+const reducedMotion = () => document.documentElement.dataset.motion === "reduce";
+const store = {   // per-browser preferences; storage may be blocked (private mode)
+  get: (key) => { try { return localStorage.getItem(key); } catch { return null; } },
+  set: (key, value) => { try { localStorage.setItem(key, value); } catch { /* not remembered */ } },
+};
+
+// Screen readers hear results and errors from a hidden live region (the footer changes too often)
+function announce(text) {
+  const live = $("srLive");
+  live.textContent = "";
+  setTimeout(() => { live.textContent = text; }, 50);
+}
 
 const isDark = () => document.documentElement.dataset.theme === "dark";
 const palette = () => {
@@ -204,7 +221,7 @@ function renderWaypoints() {
     li.innerHTML = `
       <span class="wp-label">${letter(i)}</span>
       <span class="wp-coords">${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}</span>
-      <button class="wp-remove" title="Remove" data-idx="${i}">✕</button>
+      <button class="wp-remove" title="Remove" aria-label="Remove point ${letter(i)}" data-idx="${i}">✕</button>
     `;
     ol.appendChild(li);
   });
@@ -361,14 +378,18 @@ async function computeRoutes() {
 
   if (!res.ok) {
     setStatus("⚠ " + errorText(data), "error");
+    announce(errorText(data));
     return;
   }
 
   state.lastResult = data;
   state.lastRequest = body;
+  if (window.speechSynthesis?.speaking) speechSynthesis.cancel();   // never read out an old route
   drawRoutes(data.routes);
   renderComparison(data);
+  renderHealthTips(data);
   renderCards(data);
+  announce(`Routes ready. ${summarySentences(data).slice(0, 3).join(" ")}`);
   setStatus(conditionsLine(data.conditions, data.sun) + ` · computed in ${Math.round(data.timing_ms.total)} ms`);
 }
 
@@ -399,7 +420,8 @@ function drawRoutes(routes) {
 
   for (const r of ordered) {
     const isActive = r.id === state.activeRoute;
-    const style = ROUTE_STYLE[r.id] ?? { weight: 5, dashArray: null };
+    const base = ROUTE_STYLE[r.id] ?? { weight: 5, dashArray: null };
+    const style = { ...base, weight: base.weight + (highContrast() ? 3 : 0) };
     const layerGroup = L.featureGroup();
 
     if (isActive && r.segments?.length) {
@@ -429,7 +451,7 @@ function drawRoutes(routes) {
 
   if (state.fitNext) {
     const bounds = L.featureGroup(Object.values(state.routeLayers)).getBounds();
-    if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16, animate: !reducedMotion() });
     state.fitNext = false;
   }
 }
@@ -457,6 +479,92 @@ const METRIC_INFO = {
 const metricLabel = (key) => `<span class="card-metric-label" title="${METRIC_INFO[key][1]}">${METRIC_INFO[key][0]}</span>`;
 const signed = (v, digits) => `${v >= 0 ? "+" : ""}${v.toFixed(digits)}`;
 const better = (delta, lowerIsBetter = true) => (delta === 0 ? null : (delta < 0) === lowerIsBetter);
+
+// ── HEALTH TIPS, READ ALOUD, GLOSSARY (plain language) ────────────
+// Air categories: the EEA European Air Quality Index (2024 hourly bands, as in the backend). Advice
+// paraphrases the EEA health messages, the WHO UV-index guidance and the UTCI heat-stress scale.
+const EAQI_LIMITS = { pm25: [5, 15, 50, 90, 140], pm10: [15, 45, 120, 195, 270], no2: [10, 25, 60, 100, 150] };
+const AIR_NAMES = ["good", "fair", "moderate", "poor", "very poor", "extremely poor"];
+const AIR_ADVICE = {
+  general:   ["", "", "fine for most riders; ease off if you notice symptoms.",
+              "consider a lighter pace and keep away from busy roads.",
+              "consider a shorter ride or public transport.", "avoid riding hard outdoors."],
+  sensitive: ["", "", "consider a lighter effort if you notice symptoms.",
+              "reduce your effort and avoid busy roads.", "consider postponing the ride.",
+              "avoid physical activity outdoors today."],
+};
+const SENSITIVE_PROFILES = new Set(["asthma", "senior"]);
+
+function airCategory(c) {
+  return Math.max(...Object.entries(EAQI_LIMITS).map(([k, limits]) => {
+    if (c[k] == null) return 0;
+    const i = limits.findIndex((limit) => c[k] <= limit);
+    return i === -1 ? limits.length : i;
+  }));
+}
+
+function healthTips(data, profile) {
+  const c = data.conditions;
+  const eco = data.routes.find((r) => r.id === "eco")?.metrics ?? {};
+  const sensitive = SENSITIVE_PROFILES.has(profile);
+  const tips = [];
+  const air = airCategory(c);
+  if (air >= 2) {
+    let tip = `Air is ${AIR_NAMES[air]}: ${AIR_ADVICE[sensitive ? "sensitive" : "general"][air]}`;
+    if (profile === "asthma" && air >= 3) tip += " Keep your reliever inhaler with you.";
+    tips.push(tip);
+  }
+  const feels = eco.utci_avg_c ?? c.temperature_c;
+  if (feels >= 38) tips.push("Very strong heat stress: drink often, rest in the shade and avoid the midday hours.");
+  else if (feels >= 32) tips.push("Strong heat stress: take water and prefer the shaded route.");
+  else if (feels >= 26) tips.push("Warm: take water with you.");
+  else if (feels < 0) tips.push("Cold: wear layers and cover your hands and ears.");
+  if (sensitive && feels >= 32) tips.push("Heat is harder on older riders, children and people with asthma: consider riding early or late.");
+  if (c.uv_index >= 8) tips.push("Very high UV: sunscreen, sunglasses and covered arms; shade on the route helps.");
+  else if (c.uv_index >= 6) tips.push("High UV: wear sunscreen and sunglasses.");
+  else if (c.uv_index >= 3) tips.push("Moderate UV: sunscreen on longer rides.");
+  return tips.length ? tips : ["Good conditions for a ride."];
+}
+
+function renderHealthTips(data) {
+  const tips = healthTips(data, state.lastRequest?.profile ?? $("profile").value);
+  $("healthTips").innerHTML = `<strong>Health tips for this ride</strong>
+    <ul>${tips.map((t) => `<li>${esc(t)}</li>`).join("")}</ul>
+    <small>General guidance based on EEA air-quality and WHO UV advice, not medical advice.</small>`;
+}
+
+function summarySentences(data) {
+  const c = data.comparison;
+  if (c.same_route) return ["The fastest route is already the healthiest right now."];
+  const n = (v, digits = 1) => Math.abs(v).toFixed(digits);
+  const out = [`The healthier route takes ${n(c.time_delta_min)} minutes longer.`];
+  if (c.pm25_dose_delta_pct) out.push(`You breathe in ${n(c.pm25_dose_delta_pct, 0)} percent ${c.pm25_dose_delta_pct < 0 ? "less" : "more"} fine dust.`);
+  if (c.air_poor_delta_min) out.push(`${n(c.air_poor_delta_min)} minutes ${c.air_poor_delta_min < 0 ? "less" : "more"} in poor air.`);
+  if (c.shade_delta_pp) out.push(`The shaded part of the ride is ${n(c.shade_delta_pp, 0)} percentage points ${c.shade_delta_pp > 0 ? "larger" : "smaller"}.`);
+  if (c.utci_delta_c) out.push(`It feels ${n(c.utci_delta_c)} degrees ${c.utci_delta_c < 0 ? "cooler" : "warmer"}.`);
+  if (c.uv_high_delta_min) out.push(`${n(c.uv_high_delta_min)} minutes ${c.uv_high_delta_min < 0 ? "less" : "more"} in strong sun.`);
+  const avoids = data.routes.find((r) => r.id === "eco")?.avoids ?? [];
+  if (avoids.length) out.push(`It avoids ${avoids.map((a) => a.replace(/ \(.*\)$/, "")).join(", ")}.`);
+  return out;
+}
+
+function toggleSpeech() {
+  const btn = $("speakBtn");
+  if (speechSynthesis.speaking) { speechSynthesis.cancel(); return; }
+  if (!state.lastResult) return;
+  const profile = state.lastRequest?.profile ?? $("profile").value;
+  const text = [...summarySentences(state.lastResult), ...healthTips(state.lastResult, profile)].join(" ");
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-GB";
+  utterance.onend = utterance.onerror = () => btn.setAttribute("aria-pressed", "false");
+  btn.setAttribute("aria-pressed", "true");
+  speechSynthesis.speak(utterance);
+}
+
+function renderGlossary() {
+  $("glossary").innerHTML = Object.values(METRIC_INFO)
+    .map(([name, text]) => `<dt>${esc(name)}</dt><dd>${esc(text)}</dd>`).join("");
+}
 
 // ── COMPARISON ────────────────────────────────────────────────────
 function renderComparison(data) {
@@ -520,7 +628,8 @@ function renderCards(data) {
     card.innerHTML = `
       <div class="card-header">
         <span class="card-dot" style="background:${routeColor(r)}"></span>
-        <span class="card-title">${esc(r.label)}</span>
+        <button type="button" class="card-title" aria-pressed="${r.id === state.activeRoute}"
+                aria-label="Show the ${esc(r.label)} route on the map">${esc(r.label)}</button>
         <span class="card-subtitle">${(m.distance_m / 1000).toFixed(1)} km · ${m.time_min} min${timeDiff}</span>
         <button class="card-export" type="button" data-id="${r.id}"
                 title="Download this route as GPX for Komoot, Garmin Connect, Strava and other apps">⬇ GPX</button>
@@ -552,6 +661,7 @@ function activateCard(id) {
   state.activeRoute = id;
   document.querySelectorAll(".route-card").forEach((c) => {
     c.classList.toggle("active", c.dataset.id === id);
+    c.querySelector(".card-title").setAttribute("aria-pressed", String(c.dataset.id === id));
   });
   // Redraw map layers to show detailed segments for the active route
   if (state.lastResult) drawRoutes(state.lastResult.routes);
@@ -663,7 +773,8 @@ async function loadShadeLayer() {
   state.shadeLayer = L.geoJSON(gj, {
     renderer: shadeRenderer,
     pane: "shadePane",
-    style: (f) => ({ color: getColorForDiscomfort(f.properties.discomfort * 10), weight: 3, opacity: 0.75 }),
+    style: (f) => ({ color: getColorForDiscomfort(f.properties.discomfort * 10), weight: highContrast() ? 5 : 3,
+                     opacity: highContrast() ? 0.95 : 0.75 }),
     onEachFeature: (f, layer) => {
       const p = f.properties;
       layer.bindTooltip(`${esc(p.name ?? "Unnamed way")} · shade ${Math.round(p.shade * 100)}% · ` +
@@ -725,14 +836,43 @@ function loadDemoRoute() {
   DEMO_WAYPOINTS.forEach((latlng) => addWaypoint(latlng));
 }
 
-// ── COLOUR-VISION PANEL ───────────────────────────────────────────
+// ── ACCESSIBILITY PANEL (colours, text size, contrast, motion) ───
 function setColourVision(mode) {
   if (!PALETTES[mode]) mode = "default";
   document.body.dataset.cvd = mode;
-  try { localStorage.setItem(CVD_KEY, mode); } catch { /* private mode: the choice just isn't remembered */ }
+  store.set(CVD_KEY, mode);
   document.querySelectorAll('#cvdOptions input').forEach((i) => { i.checked = i.value === mode; });
-  $("cvdBtn").classList.toggle("on", mode !== "default");
+  markPanelButton();
   refreshColours();
+}
+
+function markPanelButton() {
+  const custom = document.body.dataset.cvd !== "default" || highContrast()
+    || document.documentElement.style.getPropertyValue("--text-scale") > 1;
+  $("a11yBtn").classList.toggle("on", custom);
+}
+
+function setTextSize(scale, remember = true) {
+  if (!["1", "1.2", "1.4"].includes(String(scale))) scale = "1";
+  document.documentElement.style.setProperty("--text-scale", scale);
+  document.querySelectorAll('input[name="textSize"]').forEach((i) => { i.checked = i.value === String(scale); });
+  if (remember) store.set(TEXT_KEY, scale);
+  markPanelButton();
+  map.invalidateSize();                    // the sidebar width follows the text size
+}
+
+function setContrast(high, remember = true) {
+  document.documentElement.dataset.contrast = high ? "high" : "normal";
+  $("contrastToggle").checked = high;
+  if (remember) store.set(CONTRAST_KEY, high ? "high" : "normal");
+  markPanelButton();
+  refreshColours();                        // thicker route and map lines
+}
+
+function setMotion(reduce, remember = true) {
+  document.documentElement.dataset.motion = reduce ? "reduce" : "full";
+  $("motionToggle").checked = reduce;
+  if (remember) store.set(MOTION_KEY, reduce ? "reduce" : "full");
 }
 
 function refreshColours() {
@@ -767,7 +907,7 @@ function initTheme() {
   $("themeBtn").addEventListener("click", () => setTheme(isDark() ? "light" : "dark"));
 }
 
-function initColourVision() {
+function initAccessibility() {
   $("cvdOptions").innerHTML = Object.entries(PALETTES).map(([id, p]) => `
     <label class="cvd-option">
       <input type="radio" name="cvd" value="${id}" />
@@ -777,16 +917,24 @@ function initColourVision() {
   $("cvdOptions").addEventListener("change", (e) => setColourVision(e.target.value));
 
   const toggle = (open) => {
-    $("cvdPanel").hidden = !open;
-    $("cvdBtn").setAttribute("aria-expanded", String(open));
+    $("a11yPanel").hidden = !open;
+    $("a11yBtn").setAttribute("aria-expanded", String(open));
   };
-  $("cvdBtn").addEventListener("click", (e) => { e.stopPropagation(); toggle($("cvdPanel").hidden); });
-  document.addEventListener("click", (e) => { if (!$("cvdPanel").contains(e.target)) toggle(false); });
-  document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggle(false); });
+  $("a11yBtn").addEventListener("click", (e) => { e.stopPropagation(); toggle($("a11yPanel").hidden); });
+  document.addEventListener("click", (e) => { if (!$("a11yPanel").contains(e.target)) toggle(false); });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !$("a11yPanel").hidden) { toggle(false); $("a11yBtn").focus(); }
+  });
 
-  let saved = "default";
-  try { saved = localStorage.getItem(CVD_KEY) ?? "default"; } catch { /* no storage */ }
-  setColourVision(saved);
+  document.querySelectorAll('input[name="textSize"]').forEach((i) => i.addEventListener("change", () => setTextSize(i.value)));
+  $("contrastToggle").addEventListener("change", (e) => setContrast(e.target.checked));
+  $("motionToggle").addEventListener("change", (e) => setMotion(e.target.checked));
+
+  setColourVision(store.get(CVD_KEY) ?? "default");
+  setTextSize(store.get(TEXT_KEY) ?? "1", false);
+  setContrast(store.get(CONTRAST_KEY) === "high", false);
+  const motion = store.get(MOTION_KEY);   // default: the system "reduce motion" setting
+  setMotion(motion ? motion === "reduce" : window.matchMedia("(prefers-reduced-motion: reduce)").matches, false);
 }
 
 // ── INIT ──────────────────────────────────────────────────────────
@@ -815,7 +963,12 @@ $("clearBtn").addEventListener("click", clearAll);
 $("demoBtn").addEventListener("click", loadDemoRoute);
 
 initTheme();
-initColourVision();
+initAccessibility();
+renderGlossary();
+if ("speechSynthesis" in window) {
+  $("speakBtn").hidden = false;
+  $("speakBtn").addEventListener("click", toggleSpeech);
+}
 renderWaypoints();
 updateButtons();
 loadScenarios().then(refreshConditions);
