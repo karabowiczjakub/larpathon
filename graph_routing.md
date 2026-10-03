@@ -2,10 +2,12 @@
 
 ## Source of truth
 
-Before making changes, read `PLAN.md`.
+Backend framework: **Flask** (not FastAPI).
 
-`PLAN.md` is authoritative.
-If this file conflicts with `PLAN.md`, follow `PLAN.md`.
+Before making changes, read `roles/01_graph_routing.md`.
+
+`roles/01_graph_routing.md` is authoritative and takes precedence over this file and `PLAN.md`.
+Use `PLAN.md` for background only; where it conflicts with `roles/`, follow `roles/`.
 
 ## Responsibility
 
@@ -44,11 +46,10 @@ Routing should work from inputs such as:
 
 Use the exact contracts defined by the project and `PLAN.md`.
 
-For `MultiDiGraph`, preserve exact edge identity:
+Edge identity is `eid` (see `roles/01_graph_routing.md`): when building the graph, keep only the shortest
+edge per `(u, v)` pair (scipy sums duplicate `(u, v)` entries), then number edges `0..E-1` in `edges.parquet`.
 
-`(u, v, key)`
-
-Do not assume `(u, v)` uniquely identifies an edge.
+Every per-edge array in the project (shade, exposure, costs) uses this `eid` order. Do not change it after the graph freeze.
 
 ## Outputs
 

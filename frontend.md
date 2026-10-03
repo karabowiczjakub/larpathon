@@ -2,10 +2,12 @@
 
 ## Source of truth
 
-Before making changes, read `PLAN.md`.
+Backend framework: **Flask** (not FastAPI).
 
-`PLAN.md` is authoritative.
-If this file conflicts with `PLAN.md`, follow `PLAN.md`.
+Before making changes, read `roles/05_frontend.md`.
+
+`roles/05_frontend.md` is authoritative and takes precedence over this file and `PLAN.md`.
+Use `PLAN.md` for background only; where it conflicts with `roles/`, follow `roles/`.
 
 ## Responsibility
 
@@ -73,7 +75,9 @@ Avoid adding UI features not required by `PLAN.md` until this flow works.
 
 ## Files
 
-Prefer working only inside templates/static/frontend files.
+Prefer working only inside `app/static/` (`index.html`, `style.css`, `app.js`, `mock/`).
+Flask serves these files as static assets; no Jinja templates are needed.
+Call the API on the same server under `/api` (no CORS setup required).
 
 Do not modify routing, environment, shade or graph implementation.
 

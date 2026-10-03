@@ -1,3 +1,4 @@
+# --- Istniejące zależności (zachowane dokładne wersje) ---
 altair==6.3.0
 anyio==4.15.1
 attrs==26.1.0
@@ -35,6 +36,47 @@ streamlit==1.64.0
 toml==0.10.2
 typing_extensions==4.16.0
 urllib3==2.8.0
-uvicorn==0.54.0
+uvicorn[standard]==0.54.0
 watchdog==6.0.0
 websockets==16.1.1
+
+# --- Dodatkowe zależności dla AirRoute (backend: Flask, zob. roles/) ---
+flask>=3.0
+waitress>=3.0
+pydantic>=2.7
+httpx>=0.27
+orjson>=3.10
+cachetools>=5.3
+
+# GIS i mapy
+osmnx>=2.0
+networkx>=3.3
+geopandas>=1.0
+shapely>=2.0
+pyproj>=3.6
+rasterio>=1.3
+rioxarray
+osmium>=4.0
+lxml>=5.0
+
+# Numeryka, ML, Algorytmy (poza zainstalowanym już numpy i pandas)
+scipy>=1.13
+scikit-fuzzy>=0.5
+joblib
+scikit-learn>=1.5
+deap>=1.4
+
+# Fizyka środowiska
+pvlib>=0.11
+pythermalcomfort>=2.10
+
+# Pobieranie danych satelitarnych (Pipeline offline)
+pystac-client>=0.8
+planetary-computer>=1.0
+odc-stac>=0.3
+
+# Pozostałe narzędzia deweloperskie i wizualizacja
+ruff
+ipykernel
+matplotlib
+folium
