@@ -2,3 +2,8 @@
 __pycache__/
 *.pyc
 .env
+
+# Offline artefacts (shared via drive, never committed)
+data/raw/
+data/interim/
+data/processed/
