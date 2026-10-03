@@ -1,0 +1,50 @@
+{
+ "source": "GIOŚ archivalData: stacja 400 (Al. Krasińskiego, komunikacyjna) / 401 (ul. Bujaka, tło), mediana ilorazów godzinowych",
+ "period": [
+  "2026-07-05",
+  "2026-10-02"
+ ],
+ "generated_at": "2026-10-03T19:07:09",
+ "median_hourly_ratio": {
+  "pm10": 1.124,
+  "no2": 2.293
+ },
+ "n_hours": {
+  "pm10": 2134,
+  "no2": 2103
+ },
+ "f_road": {
+  "primary": [
+   1.124,
+   2.293
+  ],
+  "primary_link": [
+   1.124,
+   2.293
+  ],
+  "secondary": [
+   1.071,
+   1.646
+  ],
+  "secondary_link": [
+   1.071,
+   1.646
+  ],
+  "tertiary": [
+   1.036,
+   1.323
+  ],
+  "tertiary_link": [
+   1.036,
+   1.323
+  ],
+  "trunk": [
+   1.124,
+   2.293
+  ],
+  "trunk_link": [
+   1.124,
+   2.293
+  ]
+ }
+}

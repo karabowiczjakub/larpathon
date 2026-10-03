@@ -2,10 +2,12 @@
 
 ## Source of truth
 
-Before making changes, read `PLAN.md`.
+Backend framework: **Flask** (not FastAPI).
 
-`PLAN.md` is authoritative.
-If this file conflicts with `PLAN.md`, follow `PLAN.md`.
+Before making changes, read `roles/04_backend_integration.md`.
+
+`roles/04_backend_integration.md` is authoritative and takes precedence over this file and `PLAN.md`.
+Use `PLAN.md` for background only; where it conflicts with `roles/`, follow `roles/`.
 
 ## Responsibility
 
@@ -23,11 +25,21 @@ Backend does NOT absorb their internal business logic.
 
 ## Responsibilities
 
-Implement the Flask application and API specified in `PLAN.md`.
+Implement the Flask application and API specified in `roles/04_backend_integration.md`
+(`PLAN.md` section 11 describes the extended version with the Pareto front).
 
 You also coordinate shared contracts between modules.
 
-Keep `app.py` thin.
+Flask entry point: `create_app()` in `app/__init__.py`, endpoints in a blueprint in `app/api.py`.
+Keep both thin: load modules once at startup, then only orchestrate.
+
+The current root `app.py` is a Streamlit page, not part of the Flask app.
+Agree with the team to rename or remove it, so it is not confused with the `app/` package.
+
+Run:
+- development: `FLASK_APP=app:create_app flask run --debug --port 8000` (`make dev`),
+- without data: `USE_MOCKS=1` (`make mock`),
+- demo: `waitress-serve --port 8000 --threads 8 --call app:create_app` (`make run`), one process only.
 
 A request should approximately:
 
@@ -89,7 +101,7 @@ Avoid editing another person's implementation files.
 
 ## Tests
 
-Own integration/API tests.
+Own integration/API tests, using `create_app({...}).test_client()`.
 
 Test at minimum:
 - valid route request,

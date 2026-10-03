@@ -2,10 +2,12 @@
 
 ## Source of truth
 
-Before making changes, read `PLAN.md`.
+Backend framework: **Flask** (not FastAPI).
 
-`PLAN.md` is authoritative.
-If this file conflicts with `PLAN.md`, follow `PLAN.md`.
+Before making changes, read `roles/03_shade_buildings_sun.md`.
+
+`roles/03_shade_buildings_sun.md` is authoritative and takes precedence over this file and `PLAN.md`.
+Use `PLAN.md` for background only; where it conflicts with `roles/`, follow `roles/`.
 
 ## Responsibility
 
@@ -63,9 +65,8 @@ Use the caching/preprocessing strategy from `PLAN.md`.
 
 Expose a small interface that provides the shade information required by routing.
 
-Keep edge identity compatible with Routing:
-
-`(u, v, key)` / project edge identifier.
+Keep edge identity compatible with Routing: index every per-edge array by `eid`, in the row order of
+`data/processed/edges.parquet` (see `roles/01_graph_routing.md`), not by `(u, v, key)`.
 
 ## Parallel development
 

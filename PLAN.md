@@ -1,5 +1,7 @@
 # AirRoute Kraków — plan projektu (HackYeah 2026)
 
+> **Aktualizacja 3.10.2026:** backend to **Flask** (nie FastAPI). Szczegółowe plany ról, kontrakty i zweryfikowane dane są w katalogu `roles/` — **mają pierwszeństwo** przed tym dokumentem. Ten plik traktuj jako tło koncepcyjne.
+
 > **Nazwa robocza.** Aplikacja webowa wyznaczająca trasy rowerowe po Krakowie, które chronią przed smogiem, upałem i UV (preferuje cień i zieleń). Zamiast jednej „najlepszej" trasy pokazuje **front Pareto**: kilka tras o różnym kompromisie *czas ↔ zdrowie*, z wyjaśnieniem, *dlaczego* każda z nich tak biegnie.
 
 ---
@@ -17,7 +19,7 @@
 8. [Model środowiskowy krawędzi (smog, upał, cień, UV)](#8-model-środowiskowy-krawędzi-smog-upał-cień-uv)
 9. [Logika rozmyta: model dyskomfortu](#9-logika-rozmyta-model-dyskomfortu)
 10. [Silnik tras: Dijkstra-sweep + NSGA-II „Route Morphing"](#10-silnik-tras-dijkstra-sweep--nsga-ii-route-morphing)
-11. [Backend: FastAPI](#11-backend-fastapi)
+11. [Backend: Flask](#11-backend-flask)
 12. [Frontend: HTML + CSS + vanilla JS + Leaflet](#12-frontend-html--css--vanilla-js--leaflet)
 13. [Testy i wydajność](#13-testy-i-wydajność)
 14. [Uruchomienie na demo (lokalnie)](#14-uruchomienie-na-demo-lokalnie)
@@ -34,8 +36,8 @@
 | Obszar | Decyzja |
 |---|---|
 | Kategoria | **Decyzja po briefie** (Smart City vs Sport & Healthcare). Plan pasuje do obu, w pitchu przesuwamy akcent (sekcja 16). |
-| Backend | **Python 3.12 + FastAPI** (Swagger `/docs` gratis, walidacja Pydantic). |
-| Frontend | **Czysty HTML + CSS + vanilla JS**, mapa **Leaflet** z CDN, wykres **Chart.js** z CDN. Bez npm i bez build stepu, serwowane statycznie przez FastAPI. |
+| Backend | **Python 3.12 + Flask** (walidacja Pydantic, serwer waitress na demo); szczegóły w `roles/04`. |
+| Frontend | **Czysty HTML + CSS + vanilla JS**, mapa **Leaflet** z CDN, wykres **Chart.js** z CDN. Bez npm i bez build stepu, serwowane statycznie przez Flask. |
 | Silnik | **Etap 1 (MVP):** Dijkstra-sweep po wagach na `scipy.sparse.csgraph`, cel < 0,5 s. **Etap 2:** NSGA-II (DEAP) z mutacją „Route Morphing" jako tryb *Deep search* ze streamingiem frontu na żywo. |
 | Model dyskomfortu | **Logika rozmyta (scikit-fuzzy)**, policzona offline do tablic LUT i interpolowana wektorowo online. 4 profile: *Standard, Asthma/Allergy, Senior/Child, Athlete*. |
 | ML | Uczciwa heurystyka mikroklimatu: model (HistGradientBoosting, opcjonalnie MLP do porównania) uczony na **temperaturze powierzchni z Landsata** (etykieta) z cechami zieleni/zabudowy. Wynik: anomalia cieplna dla każdej krawędzi. |
@@ -232,7 +234,7 @@ Cała geometria, cień i ML liczone są **raz, offline**. Online robimy tylko: p
  Open-Meteo/GIOŚ hist. ─►│ p10 scenarios/*.json                                                        │
                          └───────────────────────────────┬──────────────────────────────────────────────┘
                                                          │ data/processed/*
-                         ┌───────────────────────────────▼──────── ONLINE (FastAPI, 1 proces) ──────────┐
+                         ┌───────────────────────────────▼──────── ONLINE (Flask, 1 proces) ────────────┐
  Open-Meteo, GIOŚ ──────►│ ConditionsService (refresh w tle co 30–60 min, cache, fallback na plik)     │
                          │        │                                                                    │
                          │        ▼                                                                    │
@@ -287,8 +289,9 @@ airroute/
 │   ├── p09_fuzzy_luts.py        #   skfuzzy → lut_{profile}.npy
 │   └── p10_scenarios.py         #   Open-Meteo/GIOŚ historia → scenarios/*.json
 ├── app/                         # ONLINE
-│   ├── main.py                  #   FastAPI, lifespan, montaż static
-│   ├── config.py                #   Settings (pydantic-settings)
+│   ├── __init__.py              #   create_app(): ładowanie artefaktów, wątek odświeżania warunków
+│   ├── api.py                   #   blueprint /api (Flask)
+│   ├── config.py                #   Settings (ze zmiennych środowiskowych)
 │   ├── schemas.py               #   modele Pydantic (request/response)
 │   ├── state.py                 #   ładowanie artefaktów do pamięci
 │   ├── fuzzy/
@@ -325,9 +328,11 @@ airroute/
 
 ## 6. Getting started: środowisko → pierwsze uruchomienie
 
+Python 3.12, jedno `make setup` i Flask z serwerem **waitress** na demo.
+
 ### 6.1 Wymagania
 
-- **Python 3.12** (Linux/macOS/WSL2; na Windows natywnie też zadziała, bo wszystkie geo-paczki mają wheele).
+- **Python 3.12** (Linux/macOS/WSL2; na Windows natywnie też zadziała, waitress jest czystym Pythonem).
 - ~8 GB RAM do pipeline'u offline (raster wysokości), ~2 GB do działania API.
 - ~3–5 GB miejsca na dane surowe.
 - Nie trzeba systemowego GDAL: `geopandas` (pyogrio) i `rasterio` mają GDAL w wheelach.
@@ -337,38 +342,33 @@ airroute/
 Zalecany jest [uv](https://docs.astral.sh/uv/), bo jest szybki. Klasyczne `venv + pip` działa tak samo.
 
 ```bash
-git clone <repo> airroute && cd airroute
+git clone git@github.com:karabowiczjakub/larpathon.git && cd larpathon
 
 # wariant A: uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv venv --python 3.12
 source .venv/bin/activate
-uv pip install -r requirements.txt -r requirements-dev.txt
+uv pip install -r requirements.txt
 
 # wariant B: venv + pip
 python3.12 -m venv .venv && source .venv/bin/activate
-pip install -U pip && pip install -r requirements.txt -r requirements-dev.txt
+pip install -U pip && pip install -r requirements.txt
 
 cp .env.example .env
 ```
 
-### 6.3 `requirements.txt`
+### 6.3 Zależności AirRoute (`requirements.txt`)
+
+Pełny plik jest w repo; poniżej część potrzebna AirRoute. Całość sprawdzona instalacją na sucho (`pip install --dry-run`) w czystym środowisku Python 3.12.
 
 ```text
-# API
-fastapi>=0.115
-uvicorn[standard]>=0.30
-pydantic>=2.7
-pydantic-settings>=2.3
+# backend
+flask>=3.0
+waitress>=3.0        # serwer na demo (czysty Python, działa też na Windows)
+pydantic>=2.7        # walidacja żądań
 httpx>=0.27
 orjson>=3.10
 cachetools>=5.3
-
-# numeryka / grafy
-numpy>=1.26
-scipy>=1.13
-pandas>=2.2
-pyarrow>=16
 
 # GIS
 osmnx>=2.0
@@ -377,11 +377,16 @@ geopandas>=1.0
 shapely>=2.0
 pyproj>=3.6
 rasterio>=1.3
+rioxarray
+osmium>=4.0          # graf z pliku PBF Geofabrik (zamiast Overpass)
+lxml>=5.0            # parsowanie budynków GUGiK LoD1 (CityGML)
 
-# AI
+# numeryka, AI
+numpy, pandas, pyarrow
+scipy>=1.13
 scikit-fuzzy>=0.5
-packaging              # skfuzzy 0.5.0 importuje ją, ale nie deklaruje (sprawdzone: bez niej ImportError)
-joblib                 # równoległe liczenie LUT
+packaging            # skfuzzy 0.5.0 jej wymaga, ale nie deklaruje (sprawdzone: bez niej ImportError)
+joblib               # równoległe liczenie LUT
 scikit-learn>=1.5
 deap>=1.4
 
@@ -393,9 +398,10 @@ pythermalcomfort>=2.10
 pystac-client>=0.8
 planetary-computer>=1.0
 odc-stac>=0.3
-```
 
-`requirements-dev.txt`: `pytest`, `ruff`, `ipykernel`, `matplotlib`, `folium` (szybkie podglądy w notebooku).
+# dev
+pytest, ruff, ipykernel, matplotlib, folium
+```
 
 > ⚠️ `pythermalcomfort` w wersji 3.x zmienił zwracane typy (dataclassy zamiast dict/float). W kodzie obsługujemy oba warianty (`getattr(res, "utci", res)`). Po instalacji sprawdźcie `pip show pythermalcomfort`.
 
@@ -406,6 +412,8 @@ DATA_DIR=data/processed
 SCENARIO_DIR=scenarios
 DEFAULT_SCENARIO=live
 CONDITIONS_REFRESH_MIN=30
+USE_MOCKS=0               # 1 = cała aplikacja na atrapach (bez danych)
+MOCK_MODULES=             # np. shade,env = atrapy tylko wybranych modułów
 AIRLY_API_KEY=            # opcjonalnie
 LOG_LEVEL=INFO
 ```
@@ -415,10 +423,10 @@ LOG_LEVEL=INFO
 ```makefile
 PY := PYTHONPATH=. python
 
-.PHONY: setup data run dev test bench scenarios clean-data
+.PHONY: setup data run dev mock test bench scenarios
 
 setup:
-	uv venv --python 3.12 && uv pip install -r requirements.txt -r requirements-dev.txt
+	uv venv --python 3.12 && uv pip install -r requirements.txt
 
 data:                       ## cały pipeline offline (kolejność ma znaczenie)
 	$(PY) pipeline/p01_graph.py
@@ -435,10 +443,13 @@ scenarios:
 	$(PY) pipeline/p10_scenarios.py
 
 dev:                        ## autoreload podczas pracy
-	uvicorn app.main:app --reload --port 8000
+	FLASK_APP=app:create_app flask run --debug --port 8000
 
-run:                        ## tryb demo: 1 worker (graf w pamięci), bez reload
-	uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 1
+mock:                       ## cała aplikacja na atrapach (frontend bez danych)
+	USE_MOCKS=1 FLASK_APP=app:create_app flask run --debug --port 8000
+
+run:                        ## tryb demo: 1 proces (graf w pamięci), 8 wątków
+	waitress-serve --host 0.0.0.0 --port 8000 --threads 8 --call app:create_app
 
 test:
 	pytest -q
@@ -447,13 +458,15 @@ bench:
 	$(PY) scripts/bench.py --n 50
 ```
 
+Nie uruchamiajcie kilku procesów (np. `gunicorn -w 4`): każdy ładowałby graf i cień do RAM osobno. Jeden proces waitress z wątkami wystarczy.
+
 ### 6.6 Pierwsze uruchomienie (checklista)
 
 1. `make setup`
-2. `make data`. Szacunkowo: graf 2–5 min, zieleń MSIP ~3 min (129 stron), budynki 2–5 min, raster 2–5 min, cień 10–20 min, Landsat 5–15 min, reszta < 5 min.
-   **Podział pracy:** `p01` i `p02` mogą iść równolegle na dwóch laptopach. Gotowe `data/processed/` udostępniamy reszcie przez dysk zespołu (`scripts/fetch_artifacts.sh`), żeby nie liczyć 4 razy.
+2. `make data`. Zmierzone lub szacowane: graf z PBF **263 s** (zmierzone), zieleń MSIP ~3 min (129 stron), budynki LoD1 **41 s pobrania + 35 s parsowania** (zmierzone), raster < 1 min, cień 1–5 min, Landsat 5–15 min, LUT fuzzy ~2 min na 8 rdzeniach.
+   Gotowe `data/processed/` udostępniamy reszcie przez dysk zespołu, żeby nie liczyć 4 razy.
 3. `make scenarios`
-4. `make dev` → http://localhost:8000 (UI) i http://localhost:8000/docs (Swagger).
+4. `make dev` → http://localhost:8000 (UI) oraz http://localhost:8000/api/health (status modułów). Bez danych: `make mock`.
 5. `make test && make bench`
 
 ### 6.7 Docker (opcjonalnie)
@@ -468,7 +481,7 @@ COPY app/ app/
 COPY scenarios/ scenarios/
 ENV DATA_DIR=/app/data/processed
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]
+CMD ["waitress-serve", "--host", "0.0.0.0", "--port", "8000", "--threads", "8", "--call", "app:create_app"]
 ```
 
 ```yaml
@@ -1362,22 +1375,29 @@ def run_nsga2(sub, t, D, cell_of_edge, cells_xy, way_local, seeds, budget_s=3.0,
 
 ---
 
-## 11. Backend: FastAPI
+## 11. Backend: Flask
+
+Jeden proces Flask (pod waitress na demo) trzyma graf i artefakty w RAM; główny endpoint `POST /api/routes` zwraca trasy, front Pareto i czasy obliczeń.
+
+> Kontrakt MVP w [`roles/04_backend_integration.md`](roles/04_backend_integration.md) jest węższy (`POST /api/route`, trasy FASTEST i ECO) i w razie różnic **ma pierwszeństwo**; ta sekcja opisuje pełną wersję z frontem Pareto i NSGA-II.
 
 ### 11.1 Endpointy
 
 | Metoda | Ścieżka | Opis |
 |---|---|---|
-| GET | `/api/health` | status + wersja artefaktów + wiek danych live |
+| GET | `/api/health` | status, wersja artefaktów, wiek danych live, które moduły są atrapami |
 | GET | `/api/profiles` | lista profili z opisami (do UI) |
 | GET | `/api/scenarios` | lista scenariuszy (`live`, `heatwave_…`, `smog_…`) |
 | GET | `/api/conditions?scenario=&at=` | warunki (temp, UV, PM tło/skorygowane, stacje GIOŚ) do stopki UI |
 | POST | `/api/routes` | **główny**: `mode=fast` (sweep) lub `deep` (NSGA-II, odpowiedź końcowa) |
 | POST | `/api/routes/stream` | `deep` ze streamingiem NDJSON: kolejne generacje frontu, na końcu wynik |
 | GET | `/api/layers/edges?bbox=&metric=&scenario=&profile=&at=` | wartości per krawędź w widoku mapy (discomfort/shade/heat/air) do nakładek |
-| GET | `/docs` | Swagger (automatycznie) |
+
+Flask nie generuje Swaggera; do ręcznych testów służą `curl` i `/api/health`. Błędy zawsze jako JSON: 400 `validation`, 422 `no_route`, 500 `internal`.
 
 ### 11.2 Schematy (`app/schemas.py`)
+
+Pydantic zostaje do walidacji wejścia i serializacji wyjścia; w Flasku wołamy go ręcznie (`model_validate` / `model_dump_json`).
 
 ```python
 from datetime import datetime
@@ -1437,74 +1457,110 @@ class RouteResponse(BaseModel):
     timing_ms: dict[str, float]
 ```
 
-### 11.3 Szkielet aplikacji (`app/main.py`)
+### 11.3 Fabryka aplikacji (`app/__init__.py`)
+
+Wszystko ładowane raz, przy starcie procesu; odświeżanie warunków w wątku w tle (daemon), bez asyncio.
 
 ```python
-import asyncio, time
-from contextlib import asynccontextmanager
-from fastapi import FastAPI, HTTPException
-from fastapi.responses import StreamingResponse
-from fastapi.staticfiles import StaticFiles
-import orjson
+import threading
+from flask import Flask
 
-from app.config import settings
-from app.schemas import RouteRequest, RouteResponse
+from app.config import Settings
 from app.state import Engine
 from app.services.conditions import ConditionsService
-from app.services.graph import NoRoute
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    app.state.engine = Engine.load(settings.data_dir)            # graf, cień, LUT-y, cechy: raz, do RAM
-    app.state.cond = ConditionsService(settings)
-    await app.state.cond.refresh()                               # pierwsze pobranie (fallback: ostatni plik)
-    task = asyncio.create_task(app.state.cond.refresh_loop())
-    app.state.engine.warmup(app.state.cond)                      # 1 przykładowe zapytanie = rozgrzane cache
-    yield
-    task.cancel()
+def create_app() -> Flask:
+    app = Flask(__name__, static_folder="static", static_url_path="")
+    settings = Settings.from_env()
 
-app = FastAPI(title="AirRoute Kraków API", version="0.1.0", lifespan=lifespan)
+    engine = Engine.load(settings.data_dir)            # graf, cień, LUT-y: raz, do RAM
+    cond = ConditionsService(settings)
+    cond.refresh()                                      # przy błędzie: ostatni plik / scenariusz
+    threading.Thread(target=cond.refresh_loop, daemon=True).start()
+    engine.warmup(cond)                                 # rozgrzane cache przed pierwszym użytkownikiem
+    app.extensions.update(engine=engine, cond=cond)
 
-@app.get("/api/health")
-def health():
-    return {"ok": True, "artifacts": app.state.engine.meta, "live_age_s": app.state.cond.age_s()}
-
-@app.post("/api/routes", response_model=RouteResponse)
-def routes(req: RouteRequest):                                   # sync def → threadpool, nie blokuje event loop
-    t0 = time.perf_counter()
-    try:
-        cond = app.state.cond.get(req.scenario, req.depart_at)
-        return app.state.engine.route(req, cond, t0=t0)
-    except NoRoute:
-        raise HTTPException(422, "No route between given points (try moving a waypoint).")
-
-@app.post("/api/routes/stream")
-def routes_stream(req: RouteRequest):
-    cond = app.state.cond.get(req.scenario, req.depart_at)
-    def gen():
-        for event in app.state.engine.route_deep_iter(req, cond):   # yield {"type":"gen",...} … {"type":"result",...}
-            yield orjson.dumps(event) + b"\n"
-    return StreamingResponse(gen(), media_type="application/x-ndjson")
-
-# na końcu: statyczny frontend (trasy /api/* mają pierwszeństwo, bo są zarejestrowane wcześniej)
-app.mount("/", StaticFiles(directory="app/static", html=True), name="static")
+    from app.api import bp
+    app.register_blueprint(bp, url_prefix="/api")
+    app.add_url_rule("/", "index", lambda: app.send_static_file("index.html"))
+    return app
 ```
 
-### 11.4 `ConditionsService`
+### 11.4 Endpointy (`app/api.py`)
 
-- **Live:** co `CONDITIONS_REFRESH_MIN` asynchronicznie (`httpx.AsyncClient`, `asyncio.gather`):
+```python
+import time
+import orjson
+from flask import Blueprint, Response, current_app, jsonify, request, stream_with_context
+from pydantic import ValidationError
+
+from app.schemas import RouteRequest
+from app.services.graph import NoRoute
+
+bp = Blueprint("api", __name__)
+
+def _engine():
+    return current_app.extensions["engine"]
+
+def _cond():
+    return current_app.extensions["cond"]
+
+def _parse() -> RouteRequest:
+    # silent=True: zły JSON daje None -> ValidationError -> czytelne 400 w JSON zamiast HTML
+    return RouteRequest.model_validate(request.get_json(force=True, silent=True))
+
+@bp.errorhandler(ValidationError)
+def _invalid(e):
+    return jsonify(error="validation", detail=e.errors(include_url=False)), 400
+
+@bp.errorhandler(NoRoute)
+def _no_route(e):
+    return jsonify(error="no_route", detail="No route between given points (try moving a waypoint)."), 422
+
+@bp.get("/health")
+def health():
+    return jsonify(ok=True, artifacts=_engine().meta, live_age_s=_cond().age_s())
+
+@bp.post("/routes")
+def routes():
+    req = _parse()
+    t0 = time.perf_counter()
+    cond = _cond().get(req.scenario, req.depart_at)
+    resp = _engine().route(req, cond, t0=t0)            # RouteResponse (pydantic)
+    return Response(resp.model_dump_json(), mimetype="application/json")
+
+@bp.post("/routes/stream")
+def routes_stream():
+    req = _parse()
+    cond = _cond().get(req.scenario, req.depart_at)
+
+    def gen():
+        for event in _engine().route_deep_iter(req, cond):   # {"type":"gen",...} ... {"type":"result",...}
+            yield orjson.dumps(event) + b"\n"
+
+    return Response(stream_with_context(gen()), mimetype="application/x-ndjson")
+```
+
+- Widoki są synchroniczne; waitress obsługuje je w puli wątków (`--threads 8`), więc dłuższe deep search nie blokuje innych zapytań.
+- Streaming NDJSON działa pod waitress bez dodatkowej konfiguracji; frontend czyta go przez `fetch` + `ReadableStream` (sekcja 12).
+- Testy: `create_app().test_client()`.
+
+### 11.5 `ConditionsService`
+
+- **Live:** wątek w tle co `CONDITIONS_REFRESH_MIN` (`httpx`, zapytania po kolei):
   1. Open-Meteo forecast (1 punkt: pogoda),
   2. Open-Meteo AQ (siatka 3×3: PM2.5/PM10/NO2/UV, prognoza 48 h),
   3. GIOŚ `data/getData` dla PM10/PM2.5/NO2 na stacjach (rozłożone w czasie pod limity).
 - Wynik zapisujemy też do `data/processed/last_live.json`. Jeśli API nie odpowiada, bierzemy ostatni plik, a UI pokazuje „data age: 2 h".
+- Dostęp do stanu przez `threading.Lock` (wątek odświeżający vs wątki waitress).
 - **`depart_at`** wybiera godzinę z prognozy (live) albo przesuwa czas w scenariuszu. Wpływa na słońce (cień) i godzinowe wartości.
 - **Scenariusze** to JSON-y z `scenarios/`, ładowane przy starcie.
 
-### 11.5 `Engine.route` (`app/state.py`, przepływ)
+### 11.6 `Engine.route` (`app/state.py`, przepływ)
 
 ```
 1. cache_key = (scenario, hour(depart_at), profile)
-   t_e, D_e, aux = exposure.compute(...)          # LRU cache (maxsize ~32)
+   t_e, D_e, aux = exposure.compute(...)          # LRU cache (maxsize ~32, chroniony lockiem)
 2. xy = to_metric(waypoints);  snap → węzły globalne
 3. sub = graph.corridor(xy);   way_local = sub.local[snapped]
 4. order, cands = router_fast.sweep(sub, t_e, D_e, way_local, optimize_order)
@@ -1715,7 +1771,7 @@ document.getElementById("deepBtn").onclick = deepSearch;
 | `test_pareto.py` | `nondominated`, `knee`, `lower_hull_mask`, `hypervolume_2d` na ręcznych przykładach |
 | `test_graph.py::test_path_continuity` | kolejne krawędzie trasy dzielą węzeł; trasa zaczyna/kończy się w snapniętych punktach |
 | `test_graph.py::test_sweep_contains_shortest` | λ=0 daje trasę o minimalnym czasie (porównanie z networkx na małym grafie) |
-| `test_api.py` | `TestClient`: 200 dla poprawnego żądania, 422 dla punktu poza Krakowem, schemat odpowiedzi |
+| `test_api.py` | `create_app().test_client()`: 200 dla poprawnego żądania, 422 dla punktu poza Krakowem, schemat odpowiedzi |
 
 ### 13.2 Benchmark (`scripts/bench.py`)
 
@@ -1733,7 +1789,7 @@ Decyzja: **lokalnie, za darmo, bez tunelu.**
 ### 14.1 Dzień demo: checklista
 
 - [ ] `data/processed/` kompletne na laptopie prezentującym (skopiowane z dysku zespołu).
-- [ ] `make run` (1 worker, bez `--reload`). Po starcie log „warmup done" i pierwsze zapytanie < 1 s.
+- [ ] `make run` (waitress, 1 proces, bez autoreload). Po starcie log „warmup done" i pierwsze zapytanie < 1 s.
 - [ ] **Tryb offline:** scenariusze są w repo. Bez internetu nie ładują się tylko kafle podkładu, więc przygotujcie fallback (zrzut ekranu lub przetestowany wcześniej cache przeglądarki).
 - [ ] Zamknięte zbędne aplikacje (RAM), zasilacz podłączony, rozdzielczość 1920×1080, zoom przeglądarki 100–110%.
 - [ ] Przygotowane 2 zestawy punktów (zapisane w `localStorage` lub jako przycisk „Demo route").
@@ -1754,7 +1810,7 @@ Bez zmian w kodzie: ten sam `Dockerfile` na dowolnym VPS (≥ 2 GB RAM), za reve
 |---|---|
 | **R1 GIS/Data** | p01–p05, p08 (graf, MSIP, budynki, raster, cień, cechy) |
 | **R2 Engine** | `graph.py`, `router_fast.py`, `pareto.py`, potem `router_evo.py`, benchmark |
-| **R3 Backend/Fuzzy/ML** | `fuzzy/*`, p09, `exposure.py`, `conditions.py`, p06–p07, p10, FastAPI |
+| **R3 Backend/Fuzzy/ML** | `fuzzy/*`, p09, `exposure.py`, `conditions.py`, p06–p07, p10, Flask |
 | **R4 Frontend/Design/Pitch** | `static/*`, UX, zrzuty, wideo, slajdy, opis zgłoszenia |
 
 ### 15.2 Harmonogram (H = godziny od startu)
@@ -1763,7 +1819,7 @@ Bez zmian w kodzie: ten sam `Dockerfile` na dowolnym VPS (≥ 2 GB RAM), za reve
 |---|---|---|---|---|
 | **0–1** | *Wszyscy:* lektura briefu, decyzja o kategorii, repo + szkielet, `make setup` u każdego | | | |
 | 1–4 | p01 graf, p02 MSIP | `graph.py` + sweep na grafie z p01 (wagi = sama długość) | `fuzzy/model.py`, p09 LUT, testy monotoniczności | `index.html` + mapa + markery na **mock JSON** |
-| 4–8 | p03 budynki (T1), p04 raster, p05 cień | Pareto, wybór 3 tras, `optimize_order` | `conditions.py` (Open-Meteo, GIOŚ), `exposure.py`, FastAPI `/api/routes` | karty, Chart.js, suwak czasu, style |
+| 4–8 | p03 budynki (T1), p04 raster, p05 cień | Pareto, wybór 3 tras, `optimize_order` | `conditions.py` (Open-Meteo, GIOŚ), `exposure.py`, Flask `/api/routes` | karty, Chart.js, suwak czasu, style |
 | **8–10** | **M1: end-to-end na realnych danych** (trasa live w UI). Integracja i naprawa błędów, wszyscy razem | | | |
 | 10–14 | p08 cechy (f_pm z GIOŚ), korytarze przewietrzania | `router_evo.py` NSGA-II + streaming | p06–p07 ML LST, p10 scenariusze, `explain.py` | Deep search UI, nakładki, wyjaśnienia na mapie |
 | 14–17 | 😴 **Sen zmianowy:** po 2–3 h, nie wszyscy naraz (R1+R3 śpią 14–17, R2+R4 17–20) | | | |
@@ -1838,7 +1894,7 @@ W stopce UI i na slajdzie „Data sources":
 - **GUGiK / Geoportal**: dane PZGiK udostępniane bezpłatnie.
 - **Landsat**: USGS (domena publiczna). **Sentinel-2/Copernicus**: free & open.
 - **CARTO basemap**: © CARTO (warunki dla użytku niekomercyjnego).
-- Biblioteki: Leaflet (BSD-2), Chart.js (MIT), DEAP (LGPL), scikit-fuzzy (BSD), OSMnx (MIT), FastAPI (MIT).
+- Biblioteki: Leaflet (BSD-2), Chart.js (MIT), DEAP (LGPL), scikit-fuzzy (BSD), OSMnx (MIT), Flask (BSD-3), waitress (ZPL).
 
 Pkt 14 regulaminu: prawa autorskie do rozwiązania **zostają przy zespole**.
 
