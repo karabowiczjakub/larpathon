@@ -96,6 +96,14 @@ def test_heatwave_shade_lowers_heat_and_uv(client):
     fastest, eco = (x["metrics"] for x in post_route(client, [A, B], scenario=HEAT).get_json()["routes"])
     assert fastest["shade_pct"] == 0 and eco["shade_pct"] == 100
     assert fastest["heat_stress_min"] > eco["heat_stress_min"]
+    assert fastest["uv_high_min"] > 0 and eco["uv_high_min"] == 0  # the park is fully shaded
+    assert fastest["utci_avg_c"] > eco["utci_avg_c"] + 5               # and feels several degrees cooler
+
+
+def test_smog_arterial_counts_as_poor_air(client):
+    """NO2 at the arterial (x2.3 by the GIOŚ road calibration) pushes EAQI to "poor"; the park path stays below."""
+    fastest, eco = (x["metrics"] for x in post_route(client, [A, B], scenario=SMOG).get_json()["routes"])
+    assert fastest["air_poor_min"] == fastest["time_min"] and eco["air_poor_min"] == 0
 
 
 def test_scenario_hour_uses_the_scenario_day_for_sun_and_shade(client):
@@ -119,6 +127,21 @@ def test_far_point_index_is_reported_in_request_order(client):
     far, park = {"lat": 50.0700, "lon": 19.9600}, {"lat": NODES[2][0], "lon": NODES[2][1]}
     r = post_route(client, [A, far, park, B], scenario=HEAT, optimize_order=True)
     assert r.status_code == 422 and r.get_json()["detail"]["index"] == 1
+
+
+def test_factors_choose_what_the_healthier_route_avoids(client):
+    """Smog at dusk: only the air differs between the arterial and the park, so without "air" ECO == FASTEST."""
+    every = post_route(client, [A, B], scenario=SMOG).get_json()
+    assert every["comparison"]["same_route"] is False and every["routes"][1]["metrics"]["distance_m"] == 300
+    no_air = post_route(client, [A, B], scenario=SMOG, factors=["heat", "uv"]).get_json()
+    assert no_air["factors"] == ["heat", "uv"] and no_air["comparison"]["same_route"] is True
+    air_only = post_route(client, [A, B], scenario=SMOG, factors=["air"]).get_json()
+    assert air_only["routes"][1]["metrics"]["distance_m"] == 300
+    assert air_only["routes"][1]["avoids"] == ["Al. Krasińskiego (air)"]
+    heat_only = post_route(client, [A, B], scenario=HEAT, factors=["heat"]).get_json()
+    assert heat_only["routes"][1]["avoids"] == ["Al. Krasińskiego (heat)"]
+    # the cards keep the full model: the same "poor air" facts whichever factors were chosen
+    assert no_air["routes"][0]["metrics"] == every["routes"][0]["metrics"]
 
 
 def test_same_start_and_end(client):

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel, Field, field_validator
@@ -13,6 +14,7 @@ TZ = ZoneInfo("Europe/Warsaw")
 LAT_RANGE = (49.95, 50.15)
 LON_RANGE = (19.75, 20.25)
 MAX_POINTS = 5
+FACTORS = ("heat", "air", "uv")  # what the healthier route may avoid ("advanced options")
 
 
 def to_local(dt: datetime | None) -> datetime | None:
@@ -39,6 +41,7 @@ class RouteRequest(BaseModel):
     depart_at: datetime | None = None
     profile: str = DEFAULT_PROFILE
     optimize_order: bool = False
+    factors: list[Literal["heat", "air", "uv"]] = Field(default_factory=lambda: list(FACTORS), min_length=1)
 
     @field_validator("depart_at")
     @classmethod

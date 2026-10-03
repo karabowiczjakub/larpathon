@@ -3,20 +3,23 @@ from __future__ import annotations
 
 import logging
 import time
+from dataclasses import replace
 from datetime import datetime
 
 import numpy as np
 
-from ..contracts import PointOutsideArea, Route
+from ..contracts import EdgeExposure, PointOutsideArea, Route
 from ..profiles import PROFILES, RiderProfile
 from ..providers import Modules
-from ..schemas import LayerQuery, RouteRequest, to_local
+from ..schemas import FACTORS, LayerQuery, RouteRequest, to_local
 from . import explain, layers, metrics, ordering
 from .costs import EdgeCostBuilder, EdgeCosts
 from .variants import DEFAULT_VARIANTS, RouteVariant
 
 log = logging.getLogger(__name__)
 WARMUP_POINTS = ({"lat": 50.0614, "lon": 19.9366}, {"lat": 50.0540, "lon": 19.9350})
+# A factor switched off in "advanced options" is fed to the fuzzy model as neutral: (exposure field, value)
+NEUTRAL_INPUTS = {"heat": ("utci_c", 15.0), "air": ("air_index", 0.0), "uv": ("uv_eff", 0.0)}
 
 
 class UnknownScenario(ValueError):
@@ -99,8 +102,14 @@ class Engine:
         points = [(p.lat, p.lon) for p in req.points]
         order = self._order(points, costs, profile) if req.optimize_order else list(range(len(points)))
         points = [points[i] for i in order]
+        factors = set(req.factors)
+        route_costs, route_profile = costs, profile
+        if factors != set(FACTORS):
+            route_costs = self._focus(costs, profile, factors)
+            if "air" not in factors:
+                route_profile = replace(profile, eco_air_weight=0.0)
         try:
-            found = [(v, self.graph.route(points, v.cost(costs, profile))) for v in self.variants]
+            found = [(v, self.graph.route(points, v.cost(route_costs, route_profile))) for v in self.variants]
         except PointOutsideArea as e:
             if e.index is not None and 0 <= e.index < len(order):
                 e.index = order[e.index]  # report the point as the client numbered it
@@ -109,7 +118,7 @@ class Engine:
 
         reference = found[0][1]
         routes = [
-            self._describe(v, r, costs, profile, None if i == 0 else reference, points)
+            self._describe(v, r, costs, profile, None if i == 0 else reference, points, route_costs.exposure)
             for i, (v, r) in enumerate(found)
         ]
         same = np.array_equal(found[0][1].eids, found[1][1].eids)
@@ -117,6 +126,7 @@ class Engine:
             "routes": routes,
             "comparison": metrics.compare(routes[0]["metrics"], routes[1]["metrics"], same),
             "order": order,
+            "factors": [f for f in FACTORS if f in factors],
             "conditions": ctx.summary(),
             "sun": self._sun(at),
         }
@@ -149,6 +159,23 @@ class Engine:
         )
         return ordering.best_order(np.asarray(matrix))
 
+    def _focus(self, costs: EdgeCosts, profile: RiderProfile, factors: set[str]) -> EdgeCosts:
+        """Costs for routing on the chosen factors only: the others are set neutral (comfortable 15 °C,
+        clean air, no UV) and Role 2's fuzzy model is evaluated again. Metrics keep the full model."""
+        from ..mocks import mock_discomfort
+
+        exp = costs.exposure
+        n = self.graph.n_edges
+        inputs = {
+            attr: np.asarray(getattr(exp, attr), dtype=np.float64) if name in factors else np.full(n, neutral)
+            for name, (attr, neutral) in NEUTRAL_INPUTS.items()
+        }
+        discomfort_fn = self.modules.discomfort or mock_discomfort
+        d = discomfort_fn(profile.id, inputs["utci_c"], inputs["air_index"], inputs["uv_eff"])
+        d = np.clip(np.nan_to_num(np.asarray(d, dtype=np.float64)), 0.0, 1.0)
+        reason = explain.dominant_reason(inputs["utci_c"], inputs["air_index"], inputs["uv_eff"])  # chosen ones
+        return replace(costs, exposure=replace(exp, discomfort=d, air_index=inputs["air_index"], reason=reason))
+
     def _describe(
         self,
         variant: RouteVariant,
@@ -157,7 +184,9 @@ class Engine:
         profile: RiderProfile,
         reference: Route | None,
         points: list[tuple[float, float]],
+        routed: EdgeExposure,
     ) -> dict:
+        """Segments and metrics use the full model; "avoids" uses what the route was chosen on (factors)."""
         eids = np.asarray(route.eids, dtype=np.int64)
         exp = costs.exposure
         if len(eids):
@@ -170,7 +199,7 @@ class Engine:
             coords, segs = [[lon, lat], [lon, lat]], []
         avoided = (
             explain.avoids(
-                np.asarray(reference.eids, dtype=np.int64), eids, exp.discomfort, exp.reason,
+                np.asarray(reference.eids, dtype=np.int64), eids, routed.discomfort, routed.reason,
                 self.graph.edge_name, self.graph.edge_length_m,
             )
             if reference is not None

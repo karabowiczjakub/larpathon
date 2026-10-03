@@ -73,6 +73,12 @@ travel costs. Without it, the backend orders the points by straight-line distanc
 - `timing_ms` has the keys `env, shade, exposure, costs, routing, describe, total`.
 - `/api/health` has `errors` (why a module fell back to its mock) and `live_source`;
   `live_data_age_s` is `null` unless live data is actually being served.
+- `metrics.uv_high_min`: minutes with shade-reduced UV ≥ 6 (WHO "high"); `comparison.uv_high_delta_min`.
+- `metrics.air_poor_min`: minutes with continuous EAQI ≥ 3 ("poor": PM2.5, PM10 or NO₂); `metrics.utci_avg_c`: time-weighted felt temperature (null for an empty route); `comparison.air_poor_delta_min`, `comparison.utci_delta_c`.
+- `POST /api/route` accepts `factors` (subset of `heat`, `air`, `uv`, default all, at least one): what the
+  ECO route avoids. Switched-off factors are fed to Role 2's `discomfort()` (`DISCOMFORT_FN`) as neutral
+  (UTCI 15 °C, clean air, no UV); metrics and segments keep the full model, `avoids` follows the factors.
+  The response echoes `factors`.
 - An unknown `scenario` returns 400 `validation`.
 - `GET /api/layers/shade?bbox=w,s,e,n&scenario=&at=&profile=` (the §4.4 stretch) returns a GeoJSON
   FeatureCollection of the edges whose midpoint is in the bbox, one per two-way street, with `shade`,
@@ -88,17 +94,23 @@ plain `t · (1 + α · D)` from roles/04 §7, the whole city sits at D 0.7–0.9
 detour adds discomfort-minutes, and ECO collapsed onto FASTEST (+0.4% time, +3 pp shade). On mild days
 `D₁₀ ≈ 0` and both formulas agree. α per profile is in `profiles.py`.
 
+The asthma profile also has `eco_air_weight` (6): `+ w · (A / median(A) + clip(A − A₁₀, 0, 1))` per unit
+of time, where `A` is the continuous EAQI. The first part is exposure (time × air), so detours through
+ordinary city air are not free and the inhaled dose does not grow; the second steers around streets
+clearly worse than the city's cleaner ones (NO₂ at arterials). Asthma therefore puts air before shade:
+with the discomfort-only cost the heatwave route inhaled +2.1% PM2.5 for +13 pp shade.
+
 `make bench` (= `python -m scripts.tune_alpha --pairs 50`): 50 random A→B pairs 1.5–6 km on the
 real modules (174,039 edges, LoD1 shade, GIOŚ-corrected scenarios), each profile with its own α:
 
 | Scenario | Profile (α) | ECO ≠ FASTEST | Δ time median / p90 | Δ shade | Δ PM2.5 dose | p50 / p95 |
 |---|---|---|---|---|---|---|
 | Heatwave 14:00 | standard (5) | 98% | +6.0% / +13.5% | +17.5 pp | +1.3% | 37 / 114 ms |
-| Heatwave 14:00 | asthma (5) | 98% | +6.7% / +18.7% | +13.8 pp | +2.1% | 42 / 85 ms |
+| Heatwave 14:00 | asthma (5, air 6) | 98% | +3.9% / +14.7% | +9.9 pp | +0.3% | 44 / 49 ms |
 | Heatwave 14:00 | senior (4) | 98% | +8.1% / +16.7% | +19.7 pp | +4.0% | 35 / 48 ms |
 | Heatwave 14:00 | athlete (3) | 100% | +4.6% / +12.8% | +13.6 pp | +0.7% | 37 / 52 ms |
 | Smog 17:00 | standard (5) | 86% | +1.2% / +12.4% | — | −0.2% | 41 / 76 ms |
-| Smog 17:00 | asthma (5) | 94% | +1.2% / +6.3% | — | −0.9% | 39 / 70 ms |
+| Smog 17:00 | asthma (5, air 6) | 94% | +1.1% / +5.6% | — | −1.3% | 43 / 51 ms |
 | Smog 17:00 | senior (4) | 96% | +3.3% / +13.5% | — | 0.0% | 37 / 45 ms |
 | Smog 17:00 | athlete (3) | 90% | +1.1% / +4.5% | — | −1.3% | 37 / 52 ms |
 

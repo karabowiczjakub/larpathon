@@ -41,7 +41,7 @@ def test_route_matches_frontend_contract(client):
         assert all(a["to"] == b["from"] for a, b in pairwise(segs))
         assert all(0 <= s["discomfort"] <= 1 and s["reason"] in {"ok", "heat", "air", "uv"} for s in segs)
     assert {"same_route", "time_delta_min", "time_delta_pct", "pm25_dose_delta_pct", "shade_delta_pp",
-            "heat_stress_delta_min"} <= set(d["comparison"])
+            "heat_stress_delta_min", "uv_high_delta_min", "air_poor_delta_min", "utci_delta_c"} <= set(d["comparison"])
     assert {"source", "temperature_c", "uv_index", "pm10", "timestamp"} <= set(d["conditions"])
     assert set(d["sun"]) == {"azimuth_deg", "elevation_deg"}
     assert d["timing_ms"]["total"] >= 0 and d["order"] == [0, 1]
@@ -273,3 +273,26 @@ def test_frontend_is_served_and_calls_only_existing_endpoints(client):
     assert called >= {"route", "scenarios", "conditions", "layers/shade"}
     routes = {rule.rule for rule in client.application.url_map.iter_rules()}
     assert {f"/api/{path}" for path in called} <= routes
+
+
+# ---------- advanced options: which factors the healthier route avoids ----------
+def test_factors_default_to_all_and_are_echoed(client):
+    d = post_route(client, [RYNEK, BLONIA], scenario=HEAT).get_json()
+    assert d["factors"] == ["heat", "air", "uv"]
+    d = post_route(client, [RYNEK, BLONIA], scenario=HEAT, factors=["uv", "air"]).get_json()
+    assert d["factors"] == ["air", "uv"]
+
+
+@pytest.mark.parametrize("factors", [[], ["wind"], "heat"])
+def test_bad_factors_return_400(client, factors):
+    r = post_route(client, [RYNEK, BLONIA], factors=factors)
+    assert r.status_code == 400 and r.get_json()["error"] == "validation"
+
+
+def test_mock_discomfort_matches_mock_exposure(mock_graph):
+    from app.mocks import MockEnv, MockShade, mock_discomfort
+
+    shade = MockShade(mock_graph)
+    ctx = MockEnv().get(HEAT, None)
+    exp = mock_exposure(ctx, shade.edge_shade(ctx.timestamp), mock_graph, shade.edge_tree_frac, "asthma")
+    assert np.allclose(mock_discomfort("asthma", exp.utci_c, exp.air_index, exp.uv_eff), exp.discomfort)

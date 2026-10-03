@@ -25,13 +25,22 @@ def mock_exposure(ctx, shade, graph, tree_frac, profile: str) -> EdgeExposure:
     air = np.clip(pm25 / 20, 0, 6)
     uv = ctx.uv_index * (1 - 0.6 * shade)
 
-    w_heat, w_air, w_uv = PROFILE_WEIGHTS.get(profile, (1.0, 1.0, 1.0))
-    severity = np.column_stack([
-        np.clip((utci - 26) / 16 * w_heat, 0, 1),
-        np.clip((air - 1) / 4 * w_air, 0, 1),
-        np.clip((uv - 3) / 6 * w_uv, 0, 1),
-    ])
+    severity = _severity(profile, utci, air, uv)
     discomfort = severity.max(axis=1)
     reason = np.where(discomfort < 0.15, -1, severity.argmax(axis=1)).astype(np.int8)
     return EdgeExposure(utci_c=utci, air_index=air, pm25=pm25, uv_eff=uv,
                         discomfort=discomfort.astype(np.float32), reason=reason)
+
+
+def mock_discomfort(profile: str, utci, air, uv) -> np.ndarray:
+    """Stand-in for Role 2's fuzzy discomfort(profile, utci, air, uv) -> (E,) 0..1."""
+    return _severity(profile, utci, air, uv).max(axis=1).astype(np.float32)
+
+
+def _severity(profile: str, utci, air, uv) -> np.ndarray:
+    w_heat, w_air, w_uv = PROFILE_WEIGHTS.get(profile, (1.0, 1.0, 1.0))
+    return np.column_stack([
+        np.clip((np.asarray(utci, dtype=np.float64) - 26) / 16 * w_heat, 0, 1),
+        np.clip((np.asarray(air, dtype=np.float64) - 1) / 4 * w_air, 0, 1),
+        np.clip((np.asarray(uv, dtype=np.float64) - 3) / 6 * w_uv, 0, 1),
+    ])

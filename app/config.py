@@ -27,4 +27,5 @@ def from_env() -> dict:
         "SHADE_FACTORY": os.getenv("SHADE_FACTORY", "app.shade.model:ShadeModel.load"),
         "ENV_FACTORY": os.getenv("ENV_FACTORY", "app.env.service:EnvironmentService"),
         "EXPOSURE_FN": os.getenv("EXPOSURE_FN", "app.env.exposure:compute_edge_exposure"),
+        "DISCOMFORT_FN": os.getenv("DISCOMFORT_FN", "app.env.exposure:discomfort"),  # advanced options
     }

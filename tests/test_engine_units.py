@@ -15,9 +15,9 @@ TZ = ZoneInfo("Europe/Warsaw")
 STANDARD = PROFILES["standard"]
 
 
-def exposure(n, discomfort=None, reason=None, utci=30.0, pm25=10.0):
+def exposure(n, discomfort=None, reason=None, utci=30.0, pm25=10.0, uv=0.0, air=1.0):
     return EdgeExposure(
-        utci_c=np.full(n, utci), air_index=np.ones(n), pm25=np.full(n, pm25), uv_eff=np.zeros(n),
+        utci_c=np.full(n, utci), air_index=np.full(n, air), pm25=np.full(n, pm25), uv_eff=np.full(n, uv),
         discomfort=np.zeros(n) if discomfort is None else np.asarray(discomfort, dtype=float),
         reason=np.full(n, -1, np.int8) if reason is None else np.asarray(reason, np.int8),
     )
@@ -66,23 +66,33 @@ def test_route_metrics_are_time_weighted():
     costs = EdgeCosts(
         time_s=np.array([60.0, 60.0, 120.0, 1.0]),
         shade=np.array([1.0, 0.0, 0.5, 0.0]),
-        exposure=exposure(n, discomfort=[0.5, 0.5, 0.2, 1.0], utci=np.array([35.0, 20.0, 33.0, 40.0])),
+        exposure=exposure(n, discomfort=[0.5, 0.5, 0.2, 1.0], utci=np.array([35.0, 20.0, 33.0, 40.0]),
+                          uv=np.array([2.9, 7.3, 6.0, 9.0]), air=np.array([2.8, 3.9, 3.0, 5.0])),
         timing_ms={},
     )
     m = metrics.route_metrics(np.array([0, 1, 2]), costs, STANDARD, np.array([250.0, 250.0, 500.0, 5.0]))
     assert m["distance_m"] == 1000 and m["time_min"] == 4.0
     assert m["shade_pct"] == 50.0 and m["avg_discomfort"] == 3.5
     assert m["heat_stress_min"] == 3.0
+    assert m["uv_high_min"] == 3.0  # sunny edge (7.3) and the one exactly at the WHO "high" threshold (6.0)
+    assert m["air_poor_min"] == 3.0  # EAQI 3.9 (arterial NO2) and exactly 3.0; 2.8 is still "moderate"
+    assert m["utci_avg_c"] == 30.2  # (35*60 + 20*60 + 33*120) / 240, weighted by riding time
+    empty = metrics.route_metrics(np.array([], dtype=int), costs, STANDARD, np.ones(4))
+    assert empty["air_poor_min"] == 0 and empty["utci_avg_c"] is None
     assert m["pm25_dose_ug"] == round(10.0 * STANDARD.ventilation_m3h * 240 / 3600, 2)
     assert metrics.route_metrics(np.array([], dtype=int), costs, STANDARD, np.ones(4))["time_min"] == 0
 
 
 def test_compare_deltas_and_zero_safety():
-    f = {"time_min": 10.0, "pm25_dose_ug": 4.0, "shade_pct": 20.0, "heat_stress_min": 5.0}
-    e = {"time_min": 12.0, "pm25_dose_ug": 3.0, "shade_pct": 50.0, "heat_stress_min": 1.0}
+    f = {"time_min": 10.0, "pm25_dose_ug": 4.0, "shade_pct": 20.0, "heat_stress_min": 5.0, "uv_high_min": 6.0,
+         "air_poor_min": 4.0, "utci_avg_c": 38.4}
+    e = {"time_min": 12.0, "pm25_dose_ug": 3.0, "shade_pct": 50.0, "heat_stress_min": 1.0, "uv_high_min": 2.5,
+         "air_poor_min": 0.5, "utci_avg_c": 35.1}
     c = metrics.compare(f, e, same_route=False)
     assert c == {"same_route": False, "time_delta_min": 2.0, "time_delta_pct": 20.0, "pm25_dose_delta_pct": -25.0,
-                 "shade_delta_pp": 30.0, "heat_stress_delta_min": -4.0}
+                 "shade_delta_pp": 30.0, "heat_stress_delta_min": -4.0, "uv_high_delta_min": -3.5,
+                 "air_poor_delta_min": -3.5, "utci_delta_c": -3.3}
+    assert metrics.compare({**f, "utci_avg_c": None}, e, False)["utci_delta_c"] == 0.0
     zero = dict.fromkeys(f, 0.0)
     assert metrics.compare(zero, zero, True)["time_delta_pct"] == 0.0
     assert metrics.compare({**f, "pm25_dose_ug": None}, e, False)["pm25_dose_delta_pct"] == 0.0
@@ -94,6 +104,20 @@ def test_eco_cost_formula():
                       exposure=exposure(2, discomfort=[0.0, 1.0]), timing_ms={})
     assert FASTEST.cost(costs, STANDARD).tolist() == [10.0, 10.0]
     assert ECO.cost(costs, STANDARD).tolist() == [10.0, 10.0 * (1 + STANDARD.eco_alpha)]
+
+
+def test_asthma_eco_cost_weighs_exposure_to_polluted_air():
+    """Same discomfort everywhere: only the asthma profile pays for time spent in worse air (NO2 at an arterial)."""
+    air = np.array([2.0, 2.0, 2.0, 4.0])
+    costs = EdgeCosts(time_s=np.full(4, 10.0), shade=np.zeros(4), exposure=exposure(4, discomfort=[0.5] * 4, air=air),
+                      timing_ms={})
+    asthma = PROFILES["asthma"]
+    cost = ECO.cost(costs, asthma)
+    # twice the median air index (+1 exposure) and one EAQI band above the cleaner streets (+1 hotspot)
+    assert cost[3] == pytest.approx(cost[0] + 10.0 * asthma.eco_air_weight * 2)
+    assert ECO.cost(costs, STANDARD).tolist() == [10.0] * 4                    # other profiles: unchanged
+    nan_air = replace(costs, exposure=exposure(4, discomfort=[0.5] * 4, air=np.array([np.nan, 2.0, 2.0, 2.0])))
+    assert np.isfinite(ECO.cost(nan_air, asthma)).all()
 
 
 def test_eco_cost_ignores_the_unavoidable_city_baseline():

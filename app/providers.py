@@ -24,6 +24,7 @@ class Modules:
     shade: ShadeModelP
     env: EnvironmentServiceP
     exposure: ExposureFn
+    discomfort: Callable | None = None  # Role 2's discomfort(profile, utci, air, uv), for chosen factors only
     status: dict[str, str] = field(default_factory=dict)  # name -> "real" | "mock" | "mock (fallback)"
     errors: dict[str, str] = field(default_factory=dict)  # name -> why the real module was not used
 
@@ -98,5 +99,23 @@ def build_modules(cfg: Mapping) -> Modules:
         mock=lambda: mocks.mock_exposure,
         check=check_exposure_fn, out=out,
     )
+    out.discomfort = _discomfort_fn(cfg, out)
     log.info("modules: %s", out.status)
     return out
+
+
+def _discomfort_fn(cfg: Mapping, out: Modules) -> Callable:
+    """Role 2's fuzzy model goes with its real exposure; with the mock exposure, the mock rule."""
+    from . import mocks
+
+    if out.status.get("exposure") != "real":
+        return mocks.mock_discomfort
+    try:
+        fn = resolve(cfg["DISCOMFORT_FN"])
+        check_exposure_fn(fn)
+        return fn
+    except Exception:
+        if cfg["STRICT_MODULES"]:
+            raise
+        log.warning("real discomfort function not available, advanced options use the mock rule", exc_info=True)
+        return mocks.mock_discomfort

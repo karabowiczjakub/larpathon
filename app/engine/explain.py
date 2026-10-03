@@ -8,6 +8,13 @@ import numpy as np
 REASONS = {-1: "ok", 0: "heat", 1: "air", 2: "uv"}
 
 
+def dominant_reason(utci: np.ndarray, air: np.ndarray, uv: np.ndarray) -> np.ndarray:
+    """Worst factor per edge, the rule of Role 2's dominant_factor: -1 ok, 0 heat, 1 air, 2 uv."""
+    severity = np.column_stack([np.clip((utci - 26) / 12, 0, 1), np.clip((air - 1) / 4, 0, 1),
+                                np.clip((uv - 3) / 6, 0, 1)])
+    return np.where(severity.max(axis=1) < 0.15, -1, severity.argmax(axis=1)).astype(np.int8)
+
+
 def edge_coord_spans(coord_counts: np.ndarray) -> tuple[np.ndarray, np.ndarray]:
     """First/last index of each edge in the concatenated route geometry (shared nodes are not duplicated)."""
     steps = np.maximum(np.asarray(coord_counts, dtype=np.int64) - 1, 0)
