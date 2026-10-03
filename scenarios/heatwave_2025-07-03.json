@@ -1,1 +1,2240 @@
-{"id": "heatwave_2025-07-03", "label": "Heatwave", "default_at": "2025-07-03T14:00:00+02:00", "hours": {"2025-07-03T14:00": {"temperature_2m": 35.0, "relative_humidity_2m": 20.0, "wind_speed_10m": 5.0, "shortwave_radiation": 862.0, "direct_normal_irradiance": 853.0, "uv_index": 8.0, "pm25_city": 12.0, "pm10_city": 25.0, "no2_city": 20.0, "stations": []}}}
+{
+ "id": "heatwave_2025-07-03",
+ "label": "Heatwave · 3 Jul 2025",
+ "day": "2025-07-03",
+ "default_at": "2025-07-03T14:00:00+02:00",
+ "hours": {
+  "2025-07-03T00:00": {
+   "temperature_2m": 22.5,
+   "relative_humidity_2m": 50,
+   "wind_speed_10m": 1.49,
+   "shortwave_radiation": 0.0,
+   "direct_normal_irradiance": 0.0,
+   "diffuse_radiation": 0.0,
+   "cloud_cover": 0,
+   "uv_index": 0.0,
+   "pm10_cams": 15.7,
+   "pm25_cams": 11.8,
+   "no2_cams": 13.4,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 32.0,
+     "pm25": 11.3,
+     "no2": 78.3
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 23.3,
+     "pm25": null,
+     "no2": 53.1
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 26.7,
+     "pm25": 7.7,
+     "no2": 29.4
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 19.5,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 20.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 19.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 21.2,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 44.0,
+     "pm25": null,
+     "no2": 54.5
+    }
+   ],
+   "pm10_city": 22.25,
+   "pm10_ratio": 1.4171974522292994,
+   "pm25_city": 9.5,
+   "pm25_ratio": 0.8050847457627118,
+   "no2_city": 53.8,
+   "no2_ratio": 4.014925373134328
+  },
+  "2025-07-03T01:00": {
+   "temperature_2m": 21.1,
+   "relative_humidity_2m": 55,
+   "wind_speed_10m": 1.48,
+   "shortwave_radiation": 0.0,
+   "direct_normal_irradiance": 0.0,
+   "diffuse_radiation": 0.0,
+   "cloud_cover": 0,
+   "uv_index": 0.0,
+   "pm10_cams": 14.7,
+   "pm25_cams": 11.9,
+   "no2_cams": 12.7,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 43.2,
+     "pm25": 13.3,
+     "no2": 58.4
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 28.3,
+     "pm25": null,
+     "no2": 56.7
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 24.0,
+     "pm25": 8.2,
+     "no2": 23.9
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 14.5,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 18.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 17.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 16.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 47.8,
+     "pm25": null,
+     "no2": 39.5
+    }
+   ],
+   "pm10_city": 21.4,
+   "pm10_ratio": 1.4557823129251701,
+   "pm25_city": 10.75,
+   "pm25_ratio": 0.9033613445378151,
+   "no2_city": 48.1,
+   "no2_ratio": 3.78740157480315
+  },
+  "2025-07-03T02:00": {
+   "temperature_2m": 19.6,
+   "relative_humidity_2m": 63,
+   "wind_speed_10m": 1.35,
+   "shortwave_radiation": 0.0,
+   "direct_normal_irradiance": 0.0,
+   "diffuse_radiation": 0.0,
+   "cloud_cover": 0,
+   "uv_index": 0.0,
+   "pm10_cams": 14.6,
+   "pm25_cams": 11.8,
+   "no2_cams": 12.4,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 43.2,
+     "pm25": 15.9,
+     "no2": 43.9
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 21.1,
+     "pm25": null,
+     "no2": 62.4
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 15.6,
+     "pm25": 8.0,
+     "no2": 21.2
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 5.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 13.1,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 10.1,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 14.3,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 30.1,
+     "pm25": null,
+     "no2": 29.0
+    }
+   ],
+   "pm10_city": 14.95,
+   "pm10_ratio": 1.023972602739726,
+   "pm25_city": 11.95,
+   "pm25_ratio": 1.0127118644067796,
+   "no2_city": 36.45,
+   "no2_ratio": 2.939516129032258
+  },
+  "2025-07-03T03:00": {
+   "temperature_2m": 17.0,
+   "relative_humidity_2m": 74,
+   "wind_speed_10m": 1.32,
+   "shortwave_radiation": 0.0,
+   "direct_normal_irradiance": 0.0,
+   "diffuse_radiation": 0.0,
+   "cloud_cover": 0,
+   "uv_index": 0.0,
+   "pm10_cams": 14.7,
+   "pm25_cams": 11.4,
+   "no2_cams": 12.0,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 46.8,
+     "pm25": 16.5,
+     "no2": 34.7
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 19.1,
+     "pm25": null,
+     "no2": 47.5
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 14.8,
+     "pm25": 8.4,
+     "no2": 20.0
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 4.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 18.5,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 14.3,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 13.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 24.2,
+     "pm25": null,
+     "no2": 17.5
+    }
+   ],
+   "pm10_city": 16.65,
+   "pm10_ratio": 1.1326530612244898,
+   "pm25_city": 12.45,
+   "pm25_ratio": 1.0921052631578947,
+   "no2_city": 27.35,
+   "no2_ratio": 2.279166666666667
+  },
+  "2025-07-03T04:00": {
+   "temperature_2m": 16.4,
+   "relative_humidity_2m": 77,
+   "wind_speed_10m": 1.08,
+   "shortwave_radiation": 0.0,
+   "direct_normal_irradiance": 0.0,
+   "diffuse_radiation": 0.0,
+   "cloud_cover": 0,
+   "uv_index": 0.0,
+   "pm10_cams": 15.3,
+   "pm25_cams": 11.7,
+   "no2_cams": 11.8,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 30.1,
+     "pm25": 13.5,
+     "no2": 30.2
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 22.5,
+     "pm25": null,
+     "no2": 38.3
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 14.6,
+     "pm25": 8.2,
+     "no2": 18.1
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 4.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 14.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 13.7,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 12.9,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 18.5,
+     "pm25": null,
+     "no2": 14.9
+    }
+   ],
+   "pm10_city": 14.3,
+   "pm10_ratio": 0.934640522875817,
+   "pm25_city": 10.85,
+   "pm25_ratio": 0.9273504273504274,
+   "no2_city": 24.15,
+   "no2_ratio": 2.046610169491525
+  },
+  "2025-07-03T05:00": {
+   "temperature_2m": 16.2,
+   "relative_humidity_2m": 78,
+   "wind_speed_10m": 1.41,
+   "shortwave_radiation": 2.0,
+   "direct_normal_irradiance": 0.0,
+   "diffuse_radiation": 2.0,
+   "cloud_cover": 0,
+   "uv_index": 0.05,
+   "pm10_cams": 15.9,
+   "pm25_cams": 12.3,
+   "no2_cams": 12.9,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 35.4,
+     "pm25": 15.1,
+     "no2": 29.1
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 20.1,
+     "pm25": null,
+     "no2": 32.8
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 15.1,
+     "pm25": 8.2,
+     "no2": 22.3
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 6.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 13.1,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 10.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 13.3,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 15.2,
+     "pm25": null,
+     "no2": 19.9
+    }
+   ],
+   "pm10_city": 14.2,
+   "pm10_ratio": 0.8930817610062892,
+   "pm25_city": 11.649999999999999,
+   "pm25_ratio": 0.9471544715447153,
+   "no2_city": 25.700000000000003,
+   "no2_ratio": 1.992248062015504
+  },
+  "2025-07-03T06:00": {
+   "temperature_2m": 17.6,
+   "relative_humidity_2m": 72,
+   "wind_speed_10m": 1.81,
+   "shortwave_radiation": 62.0,
+   "direct_normal_irradiance": 272.4,
+   "diffuse_radiation": 32.0,
+   "cloud_cover": 0,
+   "uv_index": 0.3,
+   "pm10_cams": 15.8,
+   "pm25_cams": 12.2,
+   "no2_cams": 12.8,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 36.3,
+     "pm25": 14.7,
+     "no2": 37.2
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 21.5,
+     "pm25": null,
+     "no2": 35.1
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 16.3,
+     "pm25": 8.2,
+     "no2": 25.6
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 16.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 22.3,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 10.9,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 14.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 17.1,
+     "pm25": null,
+     "no2": 30.1
+    }
+   ],
+   "pm10_city": 16.85,
+   "pm10_ratio": 1.0664556962025318,
+   "pm25_city": 11.45,
+   "pm25_ratio": 0.9385245901639344,
+   "no2_city": 32.6,
+   "no2_ratio": 2.546875
+  },
+  "2025-07-03T07:00": {
+   "temperature_2m": 21.0,
+   "relative_humidity_2m": 60,
+   "wind_speed_10m": 1.63,
+   "shortwave_radiation": 191.0,
+   "direct_normal_irradiance": 493.9,
+   "diffuse_radiation": 62.0,
+   "cloud_cover": 0,
+   "uv_index": 1.0,
+   "pm10_cams": 12.0,
+   "pm25_cams": 9.9,
+   "no2_cams": 14.9,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 40.4,
+     "pm25": 16.8,
+     "no2": 57.0
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 19.6,
+     "pm25": null,
+     "no2": 41.2
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 17.1,
+     "pm25": 8.5,
+     "no2": 28.6
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 21.3,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 27.7,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 16.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 9.9,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 18.9,
+     "pm25": null,
+     "no2": 42.0
+    }
+   ],
+   "pm10_city": 19.25,
+   "pm10_ratio": 1.6041666666666667,
+   "pm25_city": 12.65,
+   "pm25_ratio": 1.2777777777777777,
+   "no2_city": 41.6,
+   "no2_ratio": 2.791946308724832
+  },
+  "2025-07-03T08:00": {
+   "temperature_2m": 24.8,
+   "relative_humidity_2m": 49,
+   "wind_speed_10m": 0.89,
+   "shortwave_radiation": 347.0,
+   "direct_normal_irradiance": 643.6,
+   "diffuse_radiation": 80.0,
+   "cloud_cover": 0,
+   "uv_index": 2.2,
+   "pm10_cams": 10.8,
+   "pm25_cams": 9.3,
+   "no2_cams": 17.5,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 45.7,
+     "pm25": 16.8,
+     "no2": 62.4
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 24.6,
+     "pm25": null,
+     "no2": 46.6
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 23.2,
+     "pm25": 9.1,
+     "no2": 47.3
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 30.1,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 22.3,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 30.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 10.9,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 32.8,
+     "pm25": null,
+     "no2": 56.8
+    }
+   ],
+   "pm10_city": 27.35,
+   "pm10_ratio": 2.5324074074074074,
+   "pm25_city": 12.95,
+   "pm25_ratio": 1.3924731182795698,
+   "no2_city": 52.05,
+   "no2_ratio": 2.974285714285714
+  },
+  "2025-07-03T09:00": {
+   "temperature_2m": 28.0,
+   "relative_humidity_2m": 40,
+   "wind_speed_10m": 1.15,
+   "shortwave_radiation": 507.0,
+   "direct_normal_irradiance": 736.8,
+   "diffuse_radiation": 94.0,
+   "cloud_cover": 0,
+   "uv_index": 3.9,
+   "pm10_cams": 8.3,
+   "pm25_cams": 7.0,
+   "no2_cams": 13.5,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 48.7,
+     "pm25": 17.0,
+     "no2": 75.4
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 21.7,
+     "pm25": null,
+     "no2": 22.8
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 30.0,
+     "pm25": 9.7,
+     "no2": 42.8
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 34.7,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 30.2,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 37.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 15.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 36.5,
+     "pm25": null,
+     "no2": 34.5
+    }
+   ],
+   "pm10_city": 32.45,
+   "pm10_ratio": 3.9096385542168677,
+   "pm25_city": 13.35,
+   "pm25_ratio": 1.907142857142857,
+   "no2_city": 38.65,
+   "no2_ratio": 2.8629629629629627
+  },
+  "2025-07-03T10:00": {
+   "temperature_2m": 30.6,
+   "relative_humidity_2m": 31,
+   "wind_speed_10m": 1.61,
+   "shortwave_radiation": 652.0,
+   "direct_normal_irradiance": 797.5,
+   "diffuse_radiation": 103.0,
+   "cloud_cover": 0,
+   "uv_index": 5.8,
+   "pm10_cams": 7.9,
+   "pm25_cams": 6.9,
+   "no2_cams": 6.7,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 43.1,
+     "pm25": 14.4,
+     "no2": 80.3
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 22.5,
+     "pm25": null,
+     "no2": 9.4
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 31.4,
+     "pm25": 9.0,
+     "no2": 29.4
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 20.3,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 32.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 31.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 10.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 42.9,
+     "pm25": null,
+     "no2": 44.4
+    }
+   ],
+   "pm10_city": 31.6,
+   "pm10_ratio": 4.0,
+   "pm25_city": 11.7,
+   "pm25_ratio": 1.6956521739130432,
+   "no2_city": 36.9,
+   "no2_ratio": 5.507462686567163
+  },
+  "2025-07-03T11:00": {
+   "temperature_2m": 32.1,
+   "relative_humidity_2m": 27,
+   "wind_speed_10m": 1.84,
+   "shortwave_radiation": 769.0,
+   "direct_normal_irradiance": 834.5,
+   "diffuse_radiation": 110.0,
+   "cloud_cover": 0,
+   "uv_index": 7.45,
+   "pm10_cams": 7.6,
+   "pm25_cams": 6.6,
+   "no2_cams": 3.6,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 36.0,
+     "pm25": 11.0,
+     "no2": 63.7
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 18.5,
+     "pm25": null,
+     "no2": 7.2
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 19.2,
+     "pm25": 6.5,
+     "no2": 15.9
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 19.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 24.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 24.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 11.1,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 24.5,
+     "pm25": null,
+     "no2": 34.1
+    }
+   ],
+   "pm10_city": 21.9,
+   "pm10_ratio": 2.881578947368421,
+   "pm25_city": 8.75,
+   "pm25_ratio": 1.325757575757576,
+   "no2_city": 25.0,
+   "no2_ratio": 6.944444444444445
+  },
+  "2025-07-03T12:00": {
+   "temperature_2m": 33.3,
+   "relative_humidity_2m": 23,
+   "wind_speed_10m": 3.02,
+   "shortwave_radiation": 843.0,
+   "direct_normal_irradiance": 850.1,
+   "diffuse_radiation": 114.0,
+   "cloud_cover": 0,
+   "uv_index": 8.4,
+   "pm10_cams": 6.4,
+   "pm25_cams": 5.5,
+   "no2_cams": 2.9,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 36.4,
+     "pm25": 10.8,
+     "no2": 63.5
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 18.2,
+     "pm25": null,
+     "no2": 8.8
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 16.1,
+     "pm25": 5.7,
+     "no2": 19.4
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 19.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 17.1,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 9.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 7.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 21.1,
+     "pm25": null,
+     "no2": 33.5
+    }
+   ],
+   "pm10_city": 17.65,
+   "pm10_ratio": 2.7578124999999996,
+   "pm25_city": 8.25,
+   "pm25_ratio": 1.5,
+   "no2_city": 26.45,
+   "no2_ratio": 9.120689655172415
+  },
+  "2025-07-03T13:00": {
+   "temperature_2m": 34.3,
+   "relative_humidity_2m": 18,
+   "wind_speed_10m": 4.44,
+   "shortwave_radiation": 878.0,
+   "direct_normal_irradiance": 859.9,
+   "diffuse_radiation": 115.0,
+   "cloud_cover": 0,
+   "uv_index": 8.45,
+   "pm10_cams": 5.5,
+   "pm25_cams": 4.6,
+   "no2_cams": 2.6,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 38.2,
+     "pm25": 10.4,
+     "no2": 45.4
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 18.7,
+     "pm25": null,
+     "no2": 7.7
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 16.3,
+     "pm25": 5.6,
+     "no2": 15.8
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 19.7,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 13.9,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 12.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 14.7,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 18.5,
+     "pm25": null,
+     "no2": 30.1
+    }
+   ],
+   "pm10_city": 17.4,
+   "pm10_ratio": 3.1636363636363636,
+   "pm25_city": 8.0,
+   "pm25_ratio": 1.7391304347826089,
+   "no2_city": 22.950000000000003,
+   "no2_ratio": 8.826923076923078
+  },
+  "2025-07-03T14:00": {
+   "temperature_2m": 34.5,
+   "relative_humidity_2m": 20,
+   "wind_speed_10m": 4.83,
+   "shortwave_radiation": 862.0,
+   "direct_normal_irradiance": 853.0,
+   "diffuse_radiation": 114.0,
+   "cloud_cover": 0,
+   "uv_index": 7.25,
+   "pm10_cams": 5.0,
+   "pm25_cams": 4.0,
+   "no2_cams": 2.6,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 38.2,
+     "pm25": 10.4,
+     "no2": 46.8
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 16.2,
+     "pm25": null,
+     "no2": 6.4
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 15.8,
+     "pm25": 5.5,
+     "no2": 18.7
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 22.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 18.7,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 14.5,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 21.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 22.5,
+     "pm25": null,
+     "no2": 29.1
+    }
+   ],
+   "pm10_city": 20.049999999999997,
+   "pm10_ratio": 4.01,
+   "pm25_city": 7.95,
+   "pm25_ratio": 1.9875,
+   "no2_city": 23.9,
+   "no2_ratio": 9.192307692307692
+  },
+  "2025-07-03T15:00": {
+   "temperature_2m": 34.8,
+   "relative_humidity_2m": 21,
+   "wind_speed_10m": 4.95,
+   "shortwave_radiation": 799.0,
+   "direct_normal_irradiance": 831.9,
+   "diffuse_radiation": 111.0,
+   "cloud_cover": 1,
+   "uv_index": 5.7,
+   "pm10_cams": 4.8,
+   "pm25_cams": 3.9,
+   "no2_cams": 2.9,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 44.8,
+     "pm25": 12.1,
+     "no2": 54.4
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 21.4,
+     "pm25": null,
+     "no2": 7.8
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 15.5,
+     "pm25": 5.8,
+     "no2": 20.1
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 17.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 23.2,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 16.5,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 16.2,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 23.3,
+     "pm25": null,
+     "no2": 31.7
+    }
+   ],
+   "pm10_city": 19.4,
+   "pm10_ratio": 4.041666666666667,
+   "pm25_city": 8.95,
+   "pm25_ratio": 2.2948717948717947,
+   "no2_city": 25.9,
+   "no2_ratio": 8.931034482758621
+  },
+  "2025-07-03T16:00": {
+   "temperature_2m": 35.1,
+   "relative_humidity_2m": 21,
+   "wind_speed_10m": 4.5,
+   "shortwave_radiation": 695.0,
+   "direct_normal_irradiance": 790.6,
+   "diffuse_radiation": 109.0,
+   "cloud_cover": 31,
+   "uv_index": 3.9,
+   "pm10_cams": 5.0,
+   "pm25_cams": 4.0,
+   "no2_cams": 3.9,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 47.8,
+     "pm25": 13.2,
+     "no2": 59.3
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 22.8,
+     "pm25": null,
+     "no2": 8.2
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 18.5,
+     "pm25": 6.9,
+     "no2": 17.5
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 20.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 20.9,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 24.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 18.2,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 23.2,
+     "pm25": null,
+     "no2": 27.1
+    }
+   ],
+   "pm10_city": 21.85,
+   "pm10_ratio": 4.37,
+   "pm25_city": 10.05,
+   "pm25_ratio": 2.5125,
+   "no2_city": 22.3,
+   "no2_ratio": 5.717948717948718
+  },
+  "2025-07-03T17:00": {
+   "temperature_2m": 34.8,
+   "relative_humidity_2m": 21,
+   "wind_speed_10m": 4.36,
+   "shortwave_radiation": 509.0,
+   "direct_normal_irradiance": 630.3,
+   "diffuse_radiation": 115.0,
+   "cloud_cover": 70,
+   "uv_index": 1.75,
+   "pm10_cams": 6.2,
+   "pm25_cams": 4.9,
+   "no2_cams": 4.8,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 49.3,
+     "pm25": 14.9,
+     "no2": 48.9
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 28.5,
+     "pm25": null,
+     "no2": 9.5
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 21.3,
+     "pm25": 8.2,
+     "no2": 19.6
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 19.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 31.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 26.1,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 24.5,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 25.7,
+     "pm25": null,
+     "no2": 28.1
+    }
+   ],
+   "pm10_city": 25.9,
+   "pm10_ratio": 4.177419354838709,
+   "pm25_city": 11.55,
+   "pm25_ratio": 2.357142857142857,
+   "no2_city": 23.85,
+   "no2_ratio": 4.968750000000001
+  },
+  "2025-07-03T18:00": {
+   "temperature_2m": 33.5,
+   "relative_humidity_2m": 24,
+   "wind_speed_10m": 4.83,
+   "shortwave_radiation": 323.0,
+   "direct_normal_irradiance": 437.5,
+   "diffuse_radiation": 110.0,
+   "cloud_cover": 57,
+   "uv_index": 0.85,
+   "pm10_cams": 7.2,
+   "pm25_cams": 5.6,
+   "no2_cams": 5.2,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 59.7,
+     "pm25": 18.0,
+     "no2": 47.2
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 33.4,
+     "pm25": null,
+     "no2": 11.1
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 24.8,
+     "pm25": 9.4,
+     "no2": 13.1
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 26.5,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 31.2,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 19.2,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 26.2,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 31.3,
+     "pm25": null,
+     "no2": 28.3
+    }
+   ],
+   "pm10_city": 28.85,
+   "pm10_ratio": 4.006944444444445,
+   "pm25_city": 13.7,
+   "pm25_ratio": 2.4464285714285716,
+   "no2_city": 20.7,
+   "no2_ratio": 3.9807692307692304
+  },
+  "2025-07-03T19:00": {
+   "temperature_2m": 31.0,
+   "relative_humidity_2m": 34,
+   "wind_speed_10m": 4.77,
+   "shortwave_radiation": 153.0,
+   "direct_normal_irradiance": 217.5,
+   "diffuse_radiation": 80.0,
+   "cloud_cover": 42,
+   "uv_index": 0.3,
+   "pm10_cams": 10.7,
+   "pm25_cams": 7.6,
+   "no2_cams": 6.8,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 93.8,
+     "pm25": 35.4,
+     "no2": 46.1
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 42.0,
+     "pm25": null,
+     "no2": 12.0
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 38.3,
+     "pm25": 17.4,
+     "no2": 14.7
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 28.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 44.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 32.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 37.5,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 29.8,
+     "pm25": null,
+     "no2": 20.0
+    }
+   ],
+   "pm10_city": 37.9,
+   "pm10_ratio": 3.5420560747663554,
+   "pm25_city": 26.4,
+   "pm25_ratio": 3.473684210526316,
+   "no2_city": 17.35,
+   "no2_ratio": 2.5514705882352944
+  },
+  "2025-07-03T20:00": {
+   "temperature_2m": 30.1,
+   "relative_humidity_2m": 38,
+   "wind_speed_10m": 3.2,
+   "shortwave_radiation": 96.0,
+   "direct_normal_irradiance": 253.0,
+   "diffuse_radiation": 50.0,
+   "cloud_cover": 5,
+   "uv_index": 0.05,
+   "pm10_cams": 12.8,
+   "pm25_cams": 9.2,
+   "no2_cams": 9.1,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 83.9,
+     "pm25": 37.7,
+     "no2": 48.2
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 40.3,
+     "pm25": null,
+     "no2": 12.4
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 39.0,
+     "pm25": 20.9,
+     "no2": 11.0
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 24.7,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 40.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 31.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 45.9,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 47.4,
+     "pm25": null,
+     "no2": 24.0
+    }
+   ],
+   "pm10_city": 40.349999999999994,
+   "pm10_ratio": 3.1523437499999996,
+   "pm25_city": 29.3,
+   "pm25_ratio": 3.1847826086956523,
+   "no2_city": 18.2,
+   "no2_ratio": 2.0
+  },
+  "2025-07-03T21:00": {
+   "temperature_2m": 28.3,
+   "relative_humidity_2m": 44,
+   "wind_speed_10m": 3.73,
+   "shortwave_radiation": 17.0,
+   "direct_normal_irradiance": 75.1,
+   "diffuse_radiation": 12.0,
+   "cloud_cover": 48,
+   "uv_index": 0.0,
+   "pm10_cams": 13.0,
+   "pm25_cams": 10.8,
+   "no2_cams": 8.1,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 73.0,
+     "pm25": 32.6,
+     "no2": 46.7
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 39.9,
+     "pm25": null,
+     "no2": 13.9
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 41.2,
+     "pm25": 22.2,
+     "no2": 11.4
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 28.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 41.9,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 40.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 36.7,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 50.9,
+     "pm25": null,
+     "no2": 26.6
+    }
+   ],
+   "pm10_city": 40.6,
+   "pm10_ratio": 3.123076923076923,
+   "pm25_city": 27.4,
+   "pm25_ratio": 2.5370370370370368,
+   "no2_city": 20.25,
+   "no2_ratio": 2.5
+  },
+  "2025-07-03T22:00": {
+   "temperature_2m": 26.4,
+   "relative_humidity_2m": 52,
+   "wind_speed_10m": 3.73,
+   "shortwave_radiation": 0.0,
+   "direct_normal_irradiance": 0.0,
+   "diffuse_radiation": 0.0,
+   "cloud_cover": 90,
+   "uv_index": 0.0,
+   "pm10_cams": 13.0,
+   "pm25_cams": 10.9,
+   "no2_cams": 7.6,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 68.1,
+     "pm25": 27.6,
+     "no2": 45.3
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 42.5,
+     "pm25": null,
+     "no2": 10.9
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 40.7,
+     "pm25": 17.4,
+     "no2": 8.7
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 23.5,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 45.1,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 41.9,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 42.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 42.6,
+     "pm25": null,
+     "no2": 22.6
+    }
+   ],
+   "pm10_city": 42.45,
+   "pm10_ratio": 3.2653846153846158,
+   "pm25_city": 22.5,
+   "pm25_ratio": 2.0642201834862384,
+   "no2_city": 16.75,
+   "no2_ratio": 2.2039473684210527
+  },
+  "2025-07-03T23:00": {
+   "temperature_2m": 25.6,
+   "relative_humidity_2m": 54,
+   "wind_speed_10m": 3.4,
+   "shortwave_radiation": 0.0,
+   "direct_normal_irradiance": 0.0,
+   "diffuse_radiation": 0.0,
+   "cloud_cover": 76,
+   "uv_index": 0.0,
+   "pm10_cams": 12.7,
+   "pm25_cams": 10.7,
+   "no2_cams": 5.9,
+   "stations": [
+    {
+     "station_id": 400,
+     "name": "Al. Krasińskiego",
+     "lat": 50.057678,
+     "lon": 19.926189,
+     "pm10": 59.7,
+     "pm25": 21.8,
+     "no2": 36.3
+    },
+    {
+     "station_id": 401,
+     "name": "ul. Bujaka",
+     "lat": 50.010575,
+     "lon": 19.949189,
+     "pm10": 39.0,
+     "pm25": null,
+     "no2": 5.0
+    },
+    {
+     "station_id": 402,
+     "name": "ul. Bulwarowa",
+     "lat": 50.069308,
+     "lon": 20.053492,
+     "pm10": 34.3,
+     "pm25": 13.2,
+     "no2": 6.5
+    },
+    {
+     "station_id": 10123,
+     "name": "ul. Złoty Róg",
+     "lat": 50.081197,
+     "lon": 19.895358,
+     "pm10": 21.4,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10139,
+     "name": "Os. Piastów",
+     "lat": 50.098508,
+     "lon": 20.018269,
+     "pm10": 26.8,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 10447,
+     "name": "Os. Wadów",
+     "lat": 50.100569,
+     "lon": 20.122561,
+     "pm10": 28.6,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 11303,
+     "name": "Os. Swoszowice",
+     "lat": 49.991442,
+     "lon": 19.936792,
+     "pm10": 33.0,
+     "pm25": null,
+     "no2": null
+    },
+    {
+     "station_id": 16896,
+     "name": "ul. Kamieńskiego",
+     "lat": 50.024605,
+     "lon": 19.97846,
+     "pm10": 49.9,
+     "pm25": null,
+     "no2": 18.5
+    }
+   ],
+   "pm10_city": 33.65,
+   "pm10_ratio": 2.6496062992125986,
+   "pm25_city": 17.5,
+   "pm25_ratio": 1.6355140186915889,
+   "no2_city": 12.5,
+   "no2_ratio": 2.11864406779661
+  }
+ }
+}

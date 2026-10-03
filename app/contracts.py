@@ -91,7 +91,7 @@ class EnvironmentalContext:
         return out
 
 
-@dataclass(frozen=True)
+@dataclass
 class EdgeExposure:
     """All arrays have shape (E,)."""
 
@@ -109,12 +109,4 @@ class EnvironmentServiceP(Protocol):
     def scenarios(self) -> list[dict]: ...
 
 
-class ExposureFn(Protocol):
-    def __call__(
-        self,
-        ctx: EnvironmentalContext,
-        shade: np.ndarray,
-        graph: RoutingGraphP,
-        tree_frac: np.ndarray,
-        profile: str,
-    ) -> EdgeExposure: ...
+# compute_edge_exposure(ctx, shade (E,), graph: RoutingGraphP, tree_frac (E,), profile: str) -> EdgeExposure

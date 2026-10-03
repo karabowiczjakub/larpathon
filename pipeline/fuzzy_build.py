@@ -1,10 +1,13 @@
+from pathlib import Path
+
 import numpy as np
-import os
 from joblib import Parallel, delayed
 from skfuzzy import control as ctrl
+
 from app.env.fuzzy_model import build_system
 from app.env.fuzzy_profiles import PROFILES
 
+OUT = Path(__file__).resolve().parents[1] / "data" / "processed"
 G_HEAT = np.arange(-30, 50.01, 2.0)
 G_AIR = np.arange(0, 6.001, 0.2)
 G_UV = np.arange(0, 12.001, 1.0)
@@ -31,14 +34,14 @@ def slab(p, h):
     return row
 
 def build_fuzzy():
-    os.makedirs("data/processed", exist_ok=True)
+    OUT.mkdir(parents=True, exist_ok=True)
     for name, p in PROFILES.items():
         print(f"Building fuzzy LUT for {name}...")
         lut = np.stack(Parallel(n_jobs=-1)(delayed(slab)(p, h) for h in G_HEAT))
         assert not np.isnan(lut).any(), f"{name}: luka w regułach"
-        np.save(f"data/processed/lut_{name}.npy", monotone(lut, G_HEAT, 22 + p["heat_shift"]))
+        np.save(OUT / f"lut_{name}.npy", monotone(lut, G_HEAT, 22 + p["heat_shift"]))
         print(name, "ok")
-    np.savez("data/processed/lut_grid.npz", heat=G_HEAT, air=G_AIR, uv=G_UV)
+    np.savez(OUT / "lut_grid.npz", heat=G_HEAT, air=G_AIR, uv=G_UV)
 
 if __name__ == "__main__":
     build_fuzzy()
