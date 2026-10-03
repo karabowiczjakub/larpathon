@@ -114,6 +114,13 @@ def test_point_far_from_the_network_is_422_with_index(client):
     assert r.get_json()["detail"]["index"] == 1
 
 
+def test_far_point_index_is_reported_in_request_order(client):
+    """The real graph has no cost_matrix: order is by straight line, routing then sees [A, park, far, B]."""
+    far, park = {"lat": 50.0700, "lon": 19.9600}, {"lat": NODES[2][0], "lon": NODES[2][1]}
+    r = post_route(client, [A, far, park, B], scenario=HEAT, optimize_order=True)
+    assert r.status_code == 422 and r.get_json()["detail"]["index"] == 1
+
+
 def test_same_start_and_end(client):
     d = post_route(client, [A, A], scenario=SMOG).get_json()
     assert d["comparison"]["same_route"] is True

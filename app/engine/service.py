@@ -7,7 +7,7 @@ from datetime import datetime
 
 import numpy as np
 
-from ..contracts import Route
+from ..contracts import PointOutsideArea, Route
 from ..profiles import PROFILES, RiderProfile
 from ..providers import Modules
 from ..schemas import LayerQuery, RouteRequest, to_local
@@ -99,7 +99,12 @@ class Engine:
         points = [(p.lat, p.lon) for p in req.points]
         order = self._order(points, costs, profile) if req.optimize_order else list(range(len(points)))
         points = [points[i] for i in order]
-        found = [(v, self.graph.route(points, v.cost(costs, profile))) for v in self.variants]
+        try:
+            found = [(v, self.graph.route(points, v.cost(costs, profile))) for v in self.variants]
+        except PointOutsideArea as e:
+            if e.index is not None and 0 <= e.index < len(order):
+                e.index = order[e.index]  # report the point as the client numbered it
+            raise
         timer.lap("routing")
 
         reference = found[0][1]
