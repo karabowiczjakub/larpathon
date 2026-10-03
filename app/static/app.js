@@ -1,5 +1,5 @@
 /* ================================================================
-   AirRoute Kraków — app.js
+   BiKing — app.js
    Talks to the Flask backend (roles/04 §4.4):
      POST /api/route, GET /api/scenarios, /api/conditions, /api/layers/shade
    Without data the backend still answers on mocks: `make mock`.
@@ -64,19 +64,75 @@ const pad = (n) => String(n).padStart(2, "0");
 const letter = (i) => String.fromCharCode(65 + i);
 const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
 
+// ── COLOUR-VISION MODES ───────────────────────────────────────────
+// Discomfort scale (comfortable -> uncomfortable) and route colours per mode. The colour-blind scales
+// avoid red vs green (or blue vs yellow) and keep the healthier route in the "comfortable" colour.
+// `dark` overrides keep the lines visible on the dark map (dark greys and black would vanish there).
+const PALETTES = {
+  default:    { label: "Default colours", hint: "",
+                scale: ["#00c832", "#ffc832", "#ff0032"], fastest: null, eco: null,
+                dark: { fastest: "#9ca3af", eco: "#22c55e" } },
+  redgreen:   { label: "Red–green safe", hint: "protanopia, deuteranopia",
+                scale: ["#2166ac", "#b2abd2", "#e66101"], fastest: "#3f3f3f", eco: "#2166ac",
+                dark: { scale: ["#4393c3", "#b2abd2", "#f4a259"], fastest: "#bdbdbd", eco: "#4393c3" } },
+  blueyellow: { label: "Blue–yellow safe", hint: "tritanopia",
+                scale: ["#018571", "#a6a6a6", "#d01c8b"], fastest: "#3f3f3f", eco: "#018571",
+                dark: { scale: ["#5ab4ac", "#a6a6a6", "#e7298a"], fastest: "#bdbdbd", eco: "#5ab4ac" } },
+  greyscale:  { label: "Greyscale", hint: "no colour vision, printing",
+                scale: ["#d4d4d4", "#7a7a7a", "#000000"], fastest: "#8c8c8c", eco: "#000000",
+                dark: { scale: ["#4d4d4d", "#a3a3a3", "#ffffff"], fastest: "#8c8c8c", eco: "#ffffff" } },
+};
+const CVD_KEY = "biking.colourVision";
+const THEME_KEY = "biking.theme";
+
+const isDark = () => document.documentElement.dataset.theme === "dark";
+const palette = () => {
+  const p = PALETTES[document.body.dataset.cvd] ?? PALETTES.default;
+  return isDark() ? { ...p, ...p.dark } : p;
+};
+const routeColor = (r) => palette()[r.id] ?? r.color;
+const hexToRgb = (hex) => [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+
 function getColorForDiscomfort(val) {
-  // 0 (green) -> 5 (yellow) -> 10 (red)
-  if (val <= 5) {
-    const r = Math.round(255 * (val / 5));
-    return `rgb(${r}, 200, 50)`;
-  }
-  const g = Math.round(200 * (1 - ((val - 5) / 5)));
-  return `rgb(255, ${g}, 50)`;
+  // 0 (comfortable) -> 5 -> 10 (uncomfortable), linear between the palette's three stops
+  const [a, b, c] = palette().scale.map(hexToRgb);
+  const t = Math.min(Math.max(val / 10, 0), 1);
+  const [from, to, u] = t <= 0.5 ? [a, b, t * 2] : [b, c, t * 2 - 1];
+  return `rgb(${from.map((x, i) => Math.round(x + (to[i] - x) * u)).join(", ")})`;
 }
 
 function formatPct(val) {
   const sign = val > 0 ? "+" : "";
   return `${sign}${val.toFixed(0)} %`;
+}
+
+// ── LOADING ANIMATION ─────────────────────────────────────────────
+// Shown over the map only when a request takes longer than LOADER_DELAY_MS (cached answers come back in
+// ~50 ms), then kept for at least LOADER_MIN_MS so it never just flickers.
+const LOADER_DELAY_MS = 150;
+const LOADER_MIN_MS = 400;
+const loader = { pending: 0, timer: null, shownAt: 0 };
+map.getContainer().appendChild($("loader"));
+
+function startLoading(text) {
+  $("loaderText").textContent = text;
+  if (loader.pending++ > 0) return;
+  loader.timer = setTimeout(() => {
+    $("loader").hidden = false;
+    loader.shownAt = performance.now();
+  }, LOADER_DELAY_MS);
+}
+
+function stopLoading() {
+  loader.pending = Math.max(0, loader.pending - 1);
+  if (loader.pending) return;
+  clearTimeout(loader.timer);
+  const left = loader.shownAt ? LOADER_MIN_MS - (performance.now() - loader.shownAt) : 0;
+  setTimeout(() => {
+    if (loader.pending) return;
+    $("loader").hidden = true;
+    loader.shownAt = 0;
+  }, Math.max(0, left));
 }
 
 // ── MAP CLICK ─────────────────────────────────────────────────────
@@ -184,6 +240,7 @@ const departOut = $("departOut");
 const currentScenario = () => state.scenarios.find((s) => s.id === $("scenario").value);
 
 async function loadScenarios() {
+  startLoading("Starting BiKing…");
   try {
     const res = await fetch(`${API}/scenarios`);
     if (!res.ok) throw new Error(res.status);
@@ -191,6 +248,8 @@ async function loadScenarios() {
   } catch {
     state.scenarios = [{ id: "live", label: "Live now" }];
     setStatus("⚠ Backend not reachable — start it with make demo (or make mock without data)", "error");
+  } finally {
+    stopLoading();
   }
   $("scenario").innerHTML = state.scenarios
     .map((s) => `<option value="${esc(s.id)}">${esc(s.label)}</option>`).join("");
@@ -240,6 +299,24 @@ function debounceFind() {
   state.debounceTimer = setTimeout(findRoutes, 300);
 }
 
+// ── ADVANCED OPTIONS: which factors the healthier route avoids ───
+const FACTOR_LABELS = { heat: "heat", air: "air", uv: "UV" };
+const factorBoxes = () => [...document.querySelectorAll('input[name="factor"]')];
+const selectedFactors = () => factorBoxes().filter((b) => b.checked).map((b) => b.value);
+
+function onFactorChange(e) {
+  if (!selectedFactors().length) {        // the healthier route needs at least one thing to avoid
+    e.target.checked = true;
+    setStatus("At least one factor must stay on — otherwise the healthier route is just the fastest one.");
+    return;
+  }
+  const chosen = selectedFactors();
+  const badge = $("factorsBadge");
+  badge.hidden = chosen.length === factorBoxes().length;
+  badge.textContent = chosen.map((f) => FACTOR_LABELS[f]).join(" + ") + " only";
+  if (state.waypoints.length >= 2) debounceFind();
+}
+
 // ── REQUEST BODY ──────────────────────────────────────────────────
 function requestBody() {
   return {
@@ -248,13 +325,22 @@ function requestBody() {
     scenario: $("scenario").value,
     depart_at: departIso(),
     optimize_order: $("optimize").checked,
+    factors: selectedFactors(),
   };
 }
 
 // ── FIND ROUTES ───────────────────────────────────────────────────
 async function findRoutes() {
   if (state.waypoints.length < 2) return;
+  startLoading("Finding healthier routes…");
+  try {
+    await computeRoutes();
+  } finally {
+    stopLoading();
+  }
+}
 
+async function computeRoutes() {
   const currentReqId = ++state.reqId;
   setStatus('<span class="spinner"></span> Computing…', "loading");
 
@@ -317,7 +403,8 @@ function drawRoutes(routes) {
     if (isActive && r.segments?.length) {
       // Segments coloured by discomfort explain where and why the ride is uncomfortable
       const coords = r.geometry.coordinates;
-      L.geoJSON(r.geometry, { style: { color: "#fff", weight: style.weight + 4, opacity: 0.9 } }).addTo(layerGroup);
+      const casing = isDark() ? "#0f172a" : "#fff";   // separates the coloured segments from the map
+      L.geoJSON(r.geometry, { style: { color: casing, weight: style.weight + 4, opacity: 0.9 } }).addTo(layerGroup);
       for (const seg of r.segments) {
         const latLngs = coords.slice(seg.from, seg.to + 1).map((c) => [c[1], c[0]]);
         L.polyline(latLngs, { color: getColorForDiscomfort(seg.discomfort * 10), weight: style.weight + 1, opacity: 0.95 })
@@ -327,7 +414,7 @@ function drawRoutes(routes) {
       }
     } else {
       L.geoJSON(r.geometry, {
-        style: { color: r.color, weight: style.weight, opacity: isActive ? 1.0 : 0.45, dashArray: style.dashArray },
+        style: { color: routeColor(r), weight: style.weight, opacity: isActive ? 1.0 : 0.45, dashArray: style.dashArray },
       })
         .bindTooltip(`${esc(r.label)}: ${r.metrics.time_min} min · ${(r.metrics.distance_m / 1000).toFixed(1)} km`, { sticky: true })
         .addTo(layerGroup);
@@ -355,27 +442,46 @@ function clearRoutes() {
   refreshConditions();
 }
 
+// ── METRIC LABELS (same wording and hover help in cards and comparison) ──
+const METRIC_INFO = {
+  dose:    ["PM2.5 inhaled", "Fine dust breathed in on this ride: concentration × breathing rate × time"],
+  poorAir: ["Poor air", "Minutes with air quality 'poor' or worse (EEA index from PM2.5, PM10 and NO₂)"],
+  feels:   ["Feels like", "Average felt temperature on the ride (UTCI: air temperature, sun, wind, humidity)"],
+  heat:    ["Heat stress", "Minutes with felt temperature above 32 °C (strong heat stress)"],
+  shade:   ["Shade", "Share of the ride in the shade of buildings and trees"],
+  uv:      ["High UV", "Minutes in strong sun: UV index 6+ after shade (WHO 'high')"],
+  disc:    ["Discomfort", "Heat, air and UV combined for the selected profile (fuzzy model), 0–10"],
+};
+const metricLabel = (key) => `<span class="card-metric-label" title="${METRIC_INFO[key][1]}">${METRIC_INFO[key][0]}</span>`;
+const signed = (v, digits) => `${v >= 0 ? "+" : ""}${v.toFixed(digits)}`;
+const better = (delta, lowerIsBetter = true) => (delta === 0 ? null : (delta < 0) === lowerIsBetter);
+
 // ── COMPARISON ────────────────────────────────────────────────────
 function renderComparison(data) {
   const c = data.comparison;
   const el = $("comparison");
   const order = data.order ?? [];
   const reordered = order.some((v, i) => v !== i);
-  const orderHtml = reordered
+  const orderHtml = (reordered
     ? `<p class="comparison-note">Visiting order: ${order.map(letter).join(" → ")}</p>`
-    : "";
+    : "") + (data.factors && data.factors.length < Object.keys(FACTOR_LABELS).length
+    ? `<p class="comparison-note">Healthier route avoids ${data.factors.map((f) => FACTOR_LABELS[f]).join(" + ")} only (advanced options).</p>`
+    : "");
 
   if (c.same_route) {
     el.innerHTML = `<p class="comparison-same">✓ The fastest route is already the healthiest right now.</p>${orderHtml}`;
   } else {
     const row = (label, value, good) =>
-      `<span class="card-metric-label">${label}</span><span class="card-metric-val ${good == null ? "" : good ? "good" : "bad"}">${value}</span>`;
+      `${label}<span class="card-metric-val ${good == null ? "" : good ? "good" : "bad"}">${value}</span>`;
     el.innerHTML = `
       <div class="card-metrics">
-        ${row("Extra time", `+${c.time_delta_min.toFixed(1)} min (${formatPct(c.time_delta_pct)})`, null)}
-        ${row("PM2.5 inhaled", formatPct(c.pm25_dose_delta_pct), c.pm25_dose_delta_pct <= 0)}
-        ${row("Shade", `${c.shade_delta_pp >= 0 ? "+" : ""}${c.shade_delta_pp.toFixed(0)} pp`, c.shade_delta_pp >= 0)}
-        ${row("Heat stress", `${c.heat_stress_delta_min >= 0 ? "+" : ""}${c.heat_stress_delta_min.toFixed(1)} min`, c.heat_stress_delta_min <= 0)}
+        ${row('<span class="card-metric-label">Extra time</span>', `+${c.time_delta_min.toFixed(1)} min (${formatPct(c.time_delta_pct)})`, null)}
+        ${row(metricLabel("dose"), formatPct(c.pm25_dose_delta_pct), better(c.pm25_dose_delta_pct))}
+        ${row(metricLabel("poorAir"), `${signed(c.air_poor_delta_min, 1)} min`, better(c.air_poor_delta_min))}
+        ${row(metricLabel("feels"), `${signed(c.utci_delta_c, 1)} °C`, better(c.utci_delta_c))}
+        ${row(metricLabel("heat"), `${signed(c.heat_stress_delta_min, 1)} min`, better(c.heat_stress_delta_min))}
+        ${row(metricLabel("shade"), `${signed(c.shade_delta_pp, 0)} pp`, better(c.shade_delta_pp, false))}
+        ${row(metricLabel("uv"), `${signed(c.uv_high_delta_min, 1)} min`, better(c.uv_high_delta_min))}
       </div>${orderHtml}`;
   }
   $("comparisonSection").style.display = "";
@@ -394,7 +500,7 @@ function renderCards(data) {
     const card = document.createElement("div");
     card.className = "route-card" + (r.id === state.activeRoute ? " active" : "");
     card.dataset.id = r.id;
-    card.style.color = r.color;
+    card.style.color = routeColor(r);
 
     const timeDiff = !isFastest && !c.same_route
       ? ` <span style="color:var(--color-muted)">(${formatPct(c.time_delta_pct)})</span>`
@@ -402,25 +508,27 @@ function renderCards(data) {
     const dose = m.pm25_dose_ug == null ? "—" : `${m.pm25_dose_ug.toFixed(1)} µg`;
     const doseDiff = !isFastest && !c.same_route && fastest?.metrics.pm25_dose_ug
       ? ` (${formatPct(c.pm25_dose_delta_pct)})` : "";
+    // A longer detour can mean a higher dose: mark it as worse, not in the route's green
+    const doseClass = !doseDiff ? "" : c.pm25_dose_delta_pct < 0 ? "good" : c.pm25_dose_delta_pct > 0 ? "bad" : "";
+    const feels = m.utci_avg_c == null ? "—" : `${m.utci_avg_c.toFixed(1)} °C`;
     const avoidHtml = r.avoids?.length
       ? `<div class="card-avoids">⚠ Avoids: ${r.avoids.map(esc).join("; ")}</div>`
       : "";
 
     card.innerHTML = `
       <div class="card-header">
-        <span class="card-dot" style="background:${r.color}"></span>
+        <span class="card-dot" style="background:${routeColor(r)}"></span>
         <span class="card-title">${esc(r.label)}</span>
         <span class="card-subtitle">${(m.distance_m / 1000).toFixed(1)} km · ${m.time_min} min${timeDiff}</span>
       </div>
       <div class="card-metrics">
-        <span class="card-metric-label">PM2.5 inhaled</span>
-        <span class="card-metric-val ${!isFastest && c.pm25_dose_delta_pct < 0 ? "good" : ""}">${dose}${doseDiff}</span>
-        <span class="card-metric-label">Shade</span>
-        <span class="card-metric-val">${m.shade_pct.toFixed(0)}%</span>
-        <span class="card-metric-label">Heat stress</span>
-        <span class="card-metric-val">${m.heat_stress_min} min</span>
-        <span class="card-metric-label">Discomfort</span>
-        <span class="card-metric-val ${m.avg_discomfort > 6 ? "bad" : m.avg_discomfort < 4 ? "good" : ""}">${m.avg_discomfort.toFixed(1)}/10</span>
+        ${metricLabel("dose")}<span class="card-metric-val ${doseClass}">${dose}${doseDiff}</span>
+        ${metricLabel("poorAir")}<span class="card-metric-val">${m.air_poor_min} min</span>
+        ${metricLabel("feels")}<span class="card-metric-val">${feels}</span>
+        ${metricLabel("heat")}<span class="card-metric-val">${m.heat_stress_min} min</span>
+        ${metricLabel("shade")}<span class="card-metric-val">${m.shade_pct.toFixed(0)}%</span>
+        ${metricLabel("uv")}<span class="card-metric-val">${m.uv_high_min} min</span>
+        ${metricLabel("disc")}<span class="card-metric-val ${m.avg_discomfort > 6 ? "bad" : m.avg_discomfort < 4 ? "good" : ""}">${m.avg_discomfort.toFixed(1)}/10</span>
       </div>
       ${avoidHtml}
     `;
@@ -465,12 +573,15 @@ async function loadShadeLayer() {
   const params = queryParams();
   params.set("bbox", [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => v.toFixed(5)).join(","));
   let gj;
+  startLoading("Loading the discomfort map…");
   try {
     const res = await fetch(`${API}/layers/shade?${params}`);
     if (!res.ok) return;
     gj = await res.json();
   } catch {
     return;
+  } finally {
+    stopLoading();
   }
   if (reqId !== state.shadeReqId || !$("shadeLayer").checked) return;
 
@@ -540,6 +651,70 @@ function loadDemoRoute() {
   DEMO_WAYPOINTS.forEach((latlng) => addWaypoint(latlng));
 }
 
+// ── COLOUR-VISION PANEL ───────────────────────────────────────────
+function setColourVision(mode) {
+  if (!PALETTES[mode]) mode = "default";
+  document.body.dataset.cvd = mode;
+  try { localStorage.setItem(CVD_KEY, mode); } catch { /* private mode: the choice just isn't remembered */ }
+  document.querySelectorAll('#cvdOptions input').forEach((i) => { i.checked = i.value === mode; });
+  $("cvdBtn").classList.toggle("on", mode !== "default");
+  refreshColours();
+}
+
+function refreshColours() {
+  // Everything coloured from palette(): legend, routes, cards and the discomfort map
+  document.querySelector(".legend-bar").style.background = `linear-gradient(to right, ${palette().scale.join(", ")})`;
+  if (state.lastResult) {
+    drawRoutes(state.lastResult.routes);
+    renderCards(state.lastResult);
+  }
+  if (state.shadeLayer) state.shadeLayer.resetStyle();
+}
+
+// ── THEME (light / dark) ──────────────────────────────────────────
+function setTheme(theme, remember = true) {
+  document.documentElement.dataset.theme = theme;
+  if (remember) {
+    try { localStorage.setItem(THEME_KEY, theme); } catch { /* private mode: the choice just isn't remembered */ }
+  }
+  const dark = theme === "dark";
+  $("themeBtn").textContent = dark ? "☀️" : "🌙";
+  $("themeBtn").title = dark ? "Switch to light mode" : "Switch to dark mode";
+  $("themeBtn").setAttribute("aria-pressed", String(dark));
+  refreshColours();
+}
+
+function initTheme() {
+  const saved = () => { try { return localStorage.getItem(THEME_KEY); } catch { return null; } };
+  const system = window.matchMedia("(prefers-color-scheme: dark)");
+  setTheme(saved() ?? (system.matches ? "dark" : "light"), false);
+  // Follow the system setting until the user picks a theme with the button
+  system.addEventListener("change", (e) => { if (!saved()) setTheme(e.matches ? "dark" : "light", false); });
+  $("themeBtn").addEventListener("click", () => setTheme(isDark() ? "light" : "dark"));
+}
+
+function initColourVision() {
+  $("cvdOptions").innerHTML = Object.entries(PALETTES).map(([id, p]) => `
+    <label class="cvd-option">
+      <input type="radio" name="cvd" value="${id}" />
+      <span class="cvd-text"><b>${p.label}</b>${p.hint ? `<small>${p.hint}</small>` : ""}</span>
+      <span class="cvd-preview" style="background: linear-gradient(to right, ${p.scale.join(", ")})"></span>
+    </label>`).join("");
+  $("cvdOptions").addEventListener("change", (e) => setColourVision(e.target.value));
+
+  const toggle = (open) => {
+    $("cvdPanel").hidden = !open;
+    $("cvdBtn").setAttribute("aria-expanded", String(open));
+  };
+  $("cvdBtn").addEventListener("click", (e) => { e.stopPropagation(); toggle($("cvdPanel").hidden); });
+  document.addEventListener("click", (e) => { if (!$("cvdPanel").contains(e.target)) toggle(false); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") toggle(false); });
+
+  let saved = "default";
+  try { saved = localStorage.getItem(CVD_KEY) ?? "default"; } catch { /* no storage */ }
+  setColourVision(saved);
+}
+
 // ── INIT ──────────────────────────────────────────────────────────
 function onConditionsChange() {
   if (state.waypoints.length >= 2) debounceFind();
@@ -558,12 +733,15 @@ $("scenario").addEventListener("change", () => {
 $("profile").addEventListener("change", onConditionsChange);
 $("optimize").addEventListener("change", () => state.waypoints.length >= 2 && debounceFind());
 $("shadeLayer").addEventListener("change", loadShadeLayer);
+factorBoxes().forEach((b) => b.addEventListener("change", onFactorChange));
 map.on("moveend", () => $("shadeLayer").checked && debounceShade());
 
 $("findBtn").addEventListener("click", findRoutes);
 $("clearBtn").addEventListener("click", clearAll);
 $("demoBtn").addEventListener("click", loadDemoRoute);
 
+initTheme();
+initColourVision();
 renderWaypoints();
 updateButtons();
 loadScenarios().then(refreshConditions);

@@ -3,14 +3,21 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>AirRoute Kraków</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>" />
+  <title>BiKing</title>
+  <link rel="icon" type="image/png" href="logo.png" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
+  <script>
+    // Set the theme before the first paint (saved choice, else the system setting); app.js keeps it in sync.
+    try {
+      document.documentElement.dataset.theme = localStorage.getItem("biking.theme")
+        || (matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
+    } catch (e) { /* storage blocked: light theme */ }
+  </script>
 </head>
 <body>
   <header class="topbar">
-    <h1>🌿 AirRoute Kraków</h1>
+    <h1><img class="logo" src="logo.png" alt="" />BiKing</h1>
     <div class="topbar-controls">
       <label>
         Scenario
@@ -31,6 +38,19 @@
         <output id="departOut">14:00</output>
       </label>
     </div>
+    <div class="topbar-actions">
+      <button id="themeBtn" class="cvd-btn" type="button" aria-pressed="false" title="Switch to dark mode">🌙</button>
+      <div class="cvd">
+        <button id="cvdBtn" class="cvd-btn" type="button" aria-expanded="false" aria-controls="cvdPanel"
+                title="Colour options for colour-blind users">👁 Colour vision</button>
+        <div id="cvdPanel" class="cvd-panel" role="dialog" aria-label="Colour options for colour-blind users" hidden>
+          <p class="cvd-title">Colours for colour-blind users</p>
+          <div id="cvdOptions"></div>
+          <p class="cvd-note">Changes the route colours, the discomfort scale and the map. The fastest route is
+            always dashed, the healthier one solid.</p>
+        </div>
+      </div>
+    </div>
   </header>
 
   <main class="layout">
@@ -49,8 +69,18 @@
           <span id="legendScale" class="legend-scale"><span>comfortable</span><span class="legend-bar"></span><span>uncomfortable</span></span>
           <span id="legendHint" hidden>🔍 Zoom in to street level to see the map.</span>
         </div>
+        <details class="advanced" id="advanced">
+          <summary>Advanced options <span id="factorsBadge" class="factors-badge" hidden></span></summary>
+          <p class="hint">What should the healthier route avoid?</p>
+          <label class="optimize-label"><input type="checkbox" name="factor" value="heat" checked /> 🌡️ Heat (felt temperature, sun)</label>
+          <label class="optimize-label"><input type="checkbox" name="factor" value="air" checked /> 🌫️ Air pollution (PM2.5, PM10, NO₂)</label>
+          <label class="optimize-label"><input type="checkbox" name="factor" value="uv" checked /> ☀️ UV radiation</label>
+          <p class="advanced-note">Your profile still sets speed, breathing and sensitivity. The route cards always show
+            every factor, so you can see what you trade.</p>
+        </details>
         <div class="buttons">
-          <button id="findBtn" class="btn-primary" disabled>Find routes</button>
+          <button id="findBtn" class="btn-secondary" disabled
+                  title="Recalculate with the latest data. Routes already update by themselves when you change anything.">↻ Refresh</button>
           <button id="clearBtn" class="btn-secondary" disabled>Clear</button>
         </div>
         <button id="demoBtn" class="btn-demo">▶ Load demo route</button>
@@ -71,6 +101,14 @@
   </main>
 
   <footer id="status"><span>📍 Click the map to add a start point.</span></footer>
+
+  <div id="loader" class="loader" hidden aria-live="polite">
+    <div class="loader-card">
+      <img class="loader-rider" src="logo.png" alt="" />
+      <div class="loader-road"></div>
+      <span id="loaderText">Loading…</span>
+    </div>
+  </div>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
   <script src="app.js"></script>
