@@ -1,3 +1,1 @@
-"""
-pipeline/__init__.py — package marker
-"""
+"""Offline data preparation; importing this package performs no work."""

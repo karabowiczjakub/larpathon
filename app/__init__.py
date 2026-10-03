@@ -1,1 +1,1 @@
-# Flask app package — entry point: create_app()
+"""Application modules; backend integration supplies the Flask factory."""
