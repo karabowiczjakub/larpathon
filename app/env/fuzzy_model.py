@@ -8,6 +8,8 @@ UV_U = np.arange(0, 12.001, 0.05)
 OUT_U = np.arange(0, 10.001, 0.05)
 
 def build_system(p: dict) -> ctrl.ControlSystem:
+    # Sąsiednie zbiory sumują się do 1 (bez płaskich wierzchołków w realnym zakresie): bez tego
+    # np. całe „poor” 3,5–4,5 dawało stałe 7,5 i routing nie odróżniał arterii od osiedla.
     heat = ctrl.Antecedent(HEAT_U, "heat")
     air = ctrl.Antecedent(AIR_U, "air")
     uv = ctrl.Antecedent(UV_U, "uv")
@@ -16,19 +18,19 @@ def build_system(p: dict) -> ctrl.ControlSystem:
     hs, ak, uk = p["heat_shift"], p["air_scale"], p["uv_scale"]
     heat["cold"] = fuzz.trapmf(HEAT_U, [-30, -30, 0 + hs, 9 + hs])
     heat["comfortable"] = fuzz.trapmf(HEAT_U, [0 + hs, 9 + hs, 22 + hs, 26 + hs])
-    heat["warm"] = fuzz.trapmf(HEAT_U, [22 + hs, 26 + hs, 30 + hs, 32 + hs])
-    heat["hot"] = fuzz.trapmf(HEAT_U, [28 + hs, 32 + hs, 36 + hs, 38 + hs])
-    heat["very_hot"] = fuzz.trapmf(HEAT_U, [36 + hs, 38 + hs, 50, 50])
+    heat["warm"] = fuzz.trimf(HEAT_U, [22 + hs, 26 + hs, 32 + hs])
+    heat["hot"] = fuzz.trimf(HEAT_U, [26 + hs, 32 + hs, 44 + hs])
+    heat["very_hot"] = fuzz.trapmf(HEAT_U, [32 + hs, 44 + hs, 50, 50])
     
-    air["good"] = fuzz.trapmf(AIR_U, [0, 0, 1 * ak, 1.8 * ak])
+    air["good"] = fuzz.trapmf(AIR_U, [0, 0, 1 * ak, 2 * ak])
     air["fair"] = fuzz.trimf(AIR_U, [1 * ak, 2 * ak, 3 * ak])
-    air["poor"] = fuzz.trapmf(AIR_U, [2.5 * ak, 3.5 * ak, 4.5 * ak, 5 * ak])
-    air["very_poor"] = fuzz.trapmf(AIR_U, [4.5 * ak, 5.5 * ak, 6, 6])
+    air["poor"] = fuzz.trimf(AIR_U, [2 * ak, 3 * ak, 6 * ak])
+    air["very_poor"] = fuzz.trapmf(AIR_U, [3 * ak, 6 * ak, 6, 6])
     
-    uv["low"] = fuzz.trapmf(UV_U, [0, 0, 2 * uk, 3 * uk])
+    uv["low"] = fuzz.trapmf(UV_U, [0, 0, 2 * uk, 4 * uk])
     uv["moderate"] = fuzz.trimf(UV_U, [2 * uk, 4 * uk, 6 * uk])
-    uv["high"] = fuzz.trapmf(UV_U, [5 * uk, 6 * uk, 7 * uk, 8 * uk])
-    uv["very_high"] = fuzz.trapmf(UV_U, [7 * uk, 8.5 * uk, 12, 12])
+    uv["high"] = fuzz.trimf(UV_U, [4 * uk, 6 * uk, 8 * uk])
+    uv["very_high"] = fuzz.trapmf(UV_U, [6 * uk, 8 * uk, 12, 12])
     
     out["none"] = fuzz.trapmf(OUT_U, [0, 0, 1, 2])
     out["low"] = fuzz.trimf(OUT_U, [1, 2.5, 4])

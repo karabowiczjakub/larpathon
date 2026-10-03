@@ -1,4 +1,5 @@
 import json
+import threading
 import time
 from datetime import datetime
 from pathlib import Path
@@ -50,8 +51,16 @@ def test_scenario_hour_slider_stays_on_scenario_day(tmp_path):
     assert env.get("smog_2025-01-20", datetime(2025, 1, 20, 22)).timestamp.hour == 22  # noqa: DTZ001 — naive = czas Warszawy
 
 
-def test_live_never_raises(offline, tmp_path):
+def test_live_never_raises(monkeypatch, tmp_path):
+    tried = threading.Event()
+
+    def fail(**kwargs):
+        tried.set()
+        raise RuntimeError("offline")
+
+    monkeypatch.setattr(svc, "fetch_hours", fail)
     env = EnvironmentService(SCEN, tmp_path)               # wątek w tle trafia w "offline"
+    assert tried.wait(5)                                   # zanim monkeypatch zniknie — bez prawdziwej sieci w testach
     assert env.get("live", None).source == "fallback"
     assert not env.refresh()
 

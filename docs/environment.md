@@ -87,6 +87,13 @@ różni się przez `ve_ratio` = 1,7 przed indeksem, więc na panelu „Air” po
   przesuwamy o +1 h (bieżące `getData` jest w czasie lokalnym).
 - **Progi EAQI** podmienione na rewizję EEA 2024 (rola prosiła o weryfikację).
 - **Asthma:** R5 zostaje `high` zamiast `extreme` (rola: „agresywne, do strojenia”).
+- **Funkcje przynależności bez płaskich wierzchołków** (3.10.2026, po teście na prawdziwym grafie).
+  Trapezy z §7 dawały plateau: całe „poor” 3,5–4,5 → stałe 7,5, „hot” 32–36 °C → 7,5, więc arteria
+  i osiedle (smog, `standard`) albo półcień i słońce (upał) miały ten sam dyskomfort i ECO nie miało
+  czego omijać. Teraz sąsiednie zbiory sumują się do 1: `warm` △(22,26,32), `hot` △(26,32,44),
+  `very_hot` od 32 do pełna przy 44; `poor` △(2,3,6), `very_poor` od 3 do pełna przy 6; UV `high` △(4,6,8),
+  `very_high` od 6 do 8. Reguły R1–R11 bez zmian. Efekt (smog, `standard`): D(powietrze 3→5)
+  0,75 → 0,84 zamiast stałego 0,75; trasy identyczne z FASTEST: 75% → 42%.
 - **Live:** odświeżanie w pętli co 30 min (retry co 2 min), a nie na żądanie.
 
 ## Ryzyka

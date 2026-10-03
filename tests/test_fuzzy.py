@@ -1,6 +1,8 @@
+import os
+
 import numpy as np
 import pytest
-import os
+
 from app.env.fuzzy_profiles import PROFILES
 
 pytestmark = pytest.mark.skipif(
