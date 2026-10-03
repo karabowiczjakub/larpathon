@@ -1,209 +1,113 @@
 /* ================================================================
    AirRoute Kraków — app.js
-   Mock-first: MOCK_RESPONSE mirrors the /api/routes schema exactly.
-   Replace findRoutes() fetch body to switch to real backend.
+   Talks to the Flask backend (roles/04 §4.4):
+     POST /api/route, GET /api/scenarios, /api/conditions, /api/layers/shade
+   Without data the backend still answers on mocks: `make mock`.
    ================================================================ */
 
 "use strict";
 
 // ── CONSTANTS ────────────────────────────────────────────────────
 const API = "/api";
+const MAX_POINTS = 5;            // API limit: start, up to 3 via points, end
+const SHADE_MIN_ZOOM = 14;       // the discomfort map is street-level; below this the bbox is too big
 
-const COLORS = {
-  fastest:  "#6b7280",
-  balanced: "#7c3aed",
-  cleanest: "#16a34a",
+const ROUTE_STYLE = {            // fastest under, healthier on top; width also tells them apart
+  fastest: { weight: 4, dashArray: "8, 8", rank: 0 },
+  eco:     { weight: 7, dashArray: null,   rank: 1 },
 };
 
-const ROUTE_LABELS = {
-  fastest:  "Fastest",
-  balanced: "Balanced",
-  cleanest: "Cleanest",
-};
-
-// ── MOCK DATA ────────────────────────────────────────────────────
-// Realistic Kraków routes: Rynek Główny → AGH Kampus
-// LineString coordinates: [lon, lat] (GeoJSON convention)
-
-const MOCK_RESPONSE = {
-  order: [0, 1],
-  routes: [
-    {
-      id: "fastest",
-      label: "Fastest",
-      geometry: {
-        type: "LineString",
-        coordinates: [
-          [19.9366, 50.0614], // Rynek Główny
-          [19.9340, 50.0598],
-          [19.9310, 50.0576],
-          [19.9282, 50.0558],
-          [19.9258, 50.0542], // Al. Mickiewicza
-          [19.9238, 50.0525],
-          [19.9218, 50.0510],
-          [19.9196, 50.0492],
-          [19.9174, 50.0472], // AGH Campus
-        ],
-      },
-      metrics: {
-        distance_m: 6100,
-        time_min: 24,
-        discomfort_avg: 7.2,
-        pm25_dose_ug: 41.0,
-        shade_pct: 18,
-        heat_stress_min: 9,
-      },
-      vs_fastest: { time_pct: 0, pm25_dose_pct: 0 },
-      avoids: [],
-      segments: [],
-    },
-    {
-      id: "balanced",
-      label: "Balanced",
-      geometry: {
-        type: "LineString",
-        coordinates: [
-          [19.9366, 50.0614], // Rynek Główny
-          [19.9380, 50.0600],
-          [19.9370, 50.0578],
-          [19.9352, 50.0558], // through Planty gardens
-          [19.9330, 50.0540],
-          [19.9300, 50.0522],
-          [19.9270, 50.0506],
-          [19.9240, 50.0490],
-          [19.9210, 50.0474],
-          [19.9185, 50.0468],
-          [19.9174, 50.0472], // AGH Campus
-        ],
-      },
-      metrics: {
-        distance_m: 7100,
-        time_min: 27,
-        discomfort_avg: 4.5,
-        pm25_dose_ug: 28.0,
-        shade_pct: 47,
-        heat_stress_min: 4,
-      },
-      vs_fastest: { time_pct: +12.5, pm25_dose_pct: -31.7 },
-      avoids: ["Al. Mickiewicza (heat stress, no shade)"],
-      segments: [
-        { coords_from: 0, coords_to: 4, discomfort: 2.1, reason: "Shaded park path" },
-        { coords_from: 4, coords_to: 7, discomfort: 6.8, reason: "Traffic exposure" },
-        { coords_from: 7, coords_to: 10, discomfort: 3.5, reason: "Quiet street" },
-      ],
-    },
-    {
-      id: "cleanest",
-      label: "Cleanest",
-      geometry: {
-        type: "LineString",
-        coordinates: [
-          [19.9366, 50.0614], // Rynek Główny
-          [19.9395, 50.0610],
-          [19.9400, 50.0585],
-          [19.9388, 50.0558], // Planty / Park Jordana approach
-          [19.9360, 50.0535],
-          [19.9330, 50.0515],
-          [19.9295, 50.0498],
-          [19.9260, 50.0482],
-          [19.9225, 50.0472],
-          [19.9196, 50.0468],
-          [19.9174, 50.0472], // AGH Campus
-        ],
-      },
-      metrics: {
-        distance_m: 7900,
-        time_min: 31,
-        discomfort_avg: 2.8,
-        pm25_dose_ug: 24.0,
-        shade_pct: 71,
-        heat_stress_min: 2,
-      },
-      vs_fastest: { time_pct: +29.2, pm25_dose_pct: -41.5 },
-      avoids: [
-        "Al. Mickiewicza (heat stress, no shade)",
-        "Al. Krasińskiego (high PM, no shade)",
-      ],
-      segments: [
-        { coords_from: 0, coords_to: 5, discomfort: 1.5, reason: "Dense park shade" },
-        { coords_from: 5, coords_to: 10, discomfort: 2.8, reason: "Low traffic, safe" },
-      ],
-    },
-  ],
-  front: [
-    { time_min: 24, exposure: 7.2, source: "sweep", supported: true,  route_id: "fastest" },
-    { time_min: 27, exposure: 4.5, source: "sweep", supported: true,  route_id: "balanced" },
-    { time_min: 31, exposure: 2.8, source: "sweep", supported: true,  route_id: "cleanest" },
-    { time_min: 26, exposure: 5.8, source: "sweep", supported: false },
-    { time_min: 29, exposure: 3.6, source: "sweep", supported: false },
-    { time_min: 33, exposure: 2.2, source: "sweep", supported: false },
-  ],
-  conditions: {
-    temperature_c: 34.5,
-    utci: 38,
-    uv_index: 8,
-    pm10_ugm3: 63,
-    pm25_ugm3: 41,
-    source: "mock",
-    data_age_s: 0,
-  },
-  timing_ms: { snap: 0.5, costs: 12, search: 85, explain: 3, total: 100 },
-};
-
-// ── MOCK FLAG — set to false when backend is ready ──────────────
-const USE_MOCK = true;
+const REASON_LABELS = { ok: "Comfortable", heat: "Heat stress", air: "Air pollution", uv: "Strong UV" };
+const SOURCE_LABELS = { live: "live data", scenario: "scenario data", fallback: "⚠ offline fallback", mock: "mock data" };
 
 // ── MAP INIT ─────────────────────────────────────────────────────
-const map = L.map("map", { preferCanvas: true }).setView([50.0614, 19.9366], 14);
+const map = L.map("map", { preferCanvas: true }).setView([50.0614, 19.9366], 13);
 
-L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
-  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/">CARTO</a>',
+// CARTO basemaps now need an API key (tiles say "API KEY REQUIRED"); OSM is the fallback from roles/05.
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
   maxZoom: 19,
-  subdomains: "abcd",
 }).addTo(map);
+
+// The discomfort map sits under the routes.
+map.createPane("shadePane").style.zIndex = 350;
+const shadeRenderer = L.canvas({ pane: "shadePane" });
+
+// City boundary exported by the graph pipeline (Role 1); routing works only inside it.
+fetch("krakow_boundary.geojson")
+  .then((r) => (r.ok ? r.json() : null))
+  .then((gj) => gj && L.geoJSON(gj, {
+    style: { color: "#7c3aed", weight: 1.5, dashArray: "4, 6", fill: false },
+    interactive: false,
+  }).addTo(map))
+  .catch(() => {});
 
 // ── STATE ─────────────────────────────────────────────────────────
 const state = {
   waypoints: [],    // [{lat, lng}]
   markers: [],      // Leaflet markers
-  routeLayers: {},  // {id: L.GeoJSON}
-  lastRoutes: null,
-  activeRoute: null,
-  chart: null,
+  routeLayers: {},  // {id: L.FeatureGroup}
+  lastResult: null, // last /api/route response
+  activeRoute: "eco",
+  fitNext: true,    // zoom to the routes after waypoints change, not after slider/profile changes
+  scenarios: [],
+  shadeLayer: null,
   debounceTimer: null,
+  shadeTimer: null,
   reqId: 0,         // Prevent async race conditions
+  shadeReqId: 0,
 };
+
+// ── HELPERS ───────────────────────────────────────────────────────
+const $ = (id) => document.getElementById(id);
+const pad = (n) => String(n).padStart(2, "0");
+const letter = (i) => String.fromCharCode(65 + i);
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+
+function getColorForDiscomfort(val) {
+  // 0 (green) -> 5 (yellow) -> 10 (red)
+  if (val <= 5) {
+    const r = Math.round(255 * (val / 5));
+    return `rgb(${r}, 200, 50)`;
+  }
+  const g = Math.round(200 * (1 - ((val - 5) / 5)));
+  return `rgb(255, ${g}, 50)`;
+}
+
+function formatPct(val) {
+  const sign = val > 0 ? "+" : "";
+  return `${sign}${val.toFixed(0)} %`;
+}
 
 // ── MAP CLICK ─────────────────────────────────────────────────────
 map.on("click", (e) => addWaypoint(e.latlng));
 
 function addWaypoint(latlng) {
-  if (state.waypoints.length >= 7) {
-    setStatus("⚠ Max 7 waypoints allowed", "error");
+  if (state.waypoints.length >= MAX_POINTS) {
+    setStatus(`⚠ Max ${MAX_POINTS} waypoints (start, 3 via points, end)`, "error");
     return;
   }
 
-  const idx = state.waypoints.length;
-  const label = String.fromCharCode(65 + idx); // A, B, C…
-
-  console.log(`[Demo] Marker ${label} added at ${latlng.lat.toFixed(4)}, ${latlng.lng.toFixed(4)}`);
-
+  const label = letter(state.waypoints.length); // A, B, C…
   const m = L.marker(latlng, { draggable: true })
     .addTo(map)
     .bindTooltip(label, { permanent: true, direction: "top", offset: [0, -12], className: "wp-tooltip" });
 
   m.on("dragend", () => {
     state.waypoints[state.markers.indexOf(m)] = m.getLatLng();
+    state.fitNext = true;
     renderWaypoints();
     debounceFind();
   });
 
   state.waypoints.push(latlng);
   state.markers.push(m);
+  state.fitNext = true;
   renderWaypoints();
   updateButtons();
 
   if (state.waypoints.length >= 2) debounceFind();
+  else refreshConditions();
 }
 
 function removeWaypoint(idx) {
@@ -213,11 +117,11 @@ function removeWaypoint(idx) {
 
   // re-label remaining markers
   state.markers.forEach((m, i) => {
-    const label = String.fromCharCode(65 + i);
     m.unbindTooltip();
-    m.bindTooltip(label, { permanent: true, direction: "top", offset: [0, -12], className: "wp-tooltip" });
+    m.bindTooltip(letter(i), { permanent: true, direction: "top", offset: [0, -12], className: "wp-tooltip" });
   });
 
+  state.fitNext = true;
   renderWaypoints();
   updateButtons();
 
@@ -225,17 +129,24 @@ function removeWaypoint(idx) {
   else clearRoutes();
 }
 
+function clearAll() {
+  state.markers.forEach((m) => map.removeLayer(m));
+  state.waypoints = [];
+  state.markers = [];
+  renderWaypoints();
+  updateButtons();
+  clearRoutes();
+}
+
 // ── SIDEBAR: WAYPOINTS LIST ───────────────────────────────────────
 function renderWaypoints() {
-  const ol = document.getElementById("waypoints");
-  if (!ol) return;
+  const ol = $("waypoints");
   ol.innerHTML = "";
 
   state.waypoints.forEach((wp, i) => {
-    const label = String.fromCharCode(65 + i);
     const li = document.createElement("li");
     li.innerHTML = `
-      <span class="wp-label">${label}</span>
+      <span class="wp-label">${letter(i)}</span>
       <span class="wp-coords">${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}</span>
       <button class="wp-remove" title="Remove" data-idx="${i}">✕</button>
     `;
@@ -246,45 +157,81 @@ function renderWaypoints() {
     btn.addEventListener("click", () => removeWaypoint(+btn.dataset.idx));
   });
 
-  const hint = document.getElementById("waypointHint");
-  if (hint) {
-    if (state.waypoints.length === 0) {
-      hint.innerHTML = "📍 Click the map to add a start point.";
-      hint.style.display = "";
-    } else if (state.waypoints.length === 1) {
-      hint.innerHTML = "🏁 Click the map to add a destination.";
-      hint.style.display = "";
-    } else {
-      hint.style.display = "none";
-    }
+  const hint = $("waypointHint");
+  if (state.waypoints.length === 0) {
+    hint.innerHTML = "📍 Click the map to add a start point.";
+    hint.style.display = "";
+  } else if (state.waypoints.length === 1) {
+    hint.innerHTML = "🏁 Click the map to add a destination.";
+    hint.style.display = "";
+  } else if (state.waypoints.length < MAX_POINTS) {
+    hint.innerHTML = "➕ Click again to add a via point; drag markers to adjust.";
+    hint.style.display = "";
+  } else {
+    hint.style.display = "none";
   }
 }
 
 function updateButtons() {
-  const ready = state.waypoints.length >= 2;
-  const fBtn = document.getElementById("findBtn");
-  if (fBtn) fBtn.disabled = !ready;
-  const dBtn = document.getElementById("deepBtn");
-  if (dBtn) dBtn.disabled = !ready;
+  $("findBtn").disabled = state.waypoints.length < 2;
+  $("clearBtn").disabled = state.waypoints.length === 0;
 }
 
-// ── DEPART SLIDER ─────────────────────────────────────────────────
-const departSlider = document.getElementById("depart");
-const departOut = document.getElementById("departOut");
+// ── SCENARIOS & DEPART SLIDER ─────────────────────────────────────
+const departSlider = $("depart");
+const departOut = $("departOut");
+
+const currentScenario = () => state.scenarios.find((s) => s.id === $("scenario").value);
+
+async function loadScenarios() {
+  try {
+    const res = await fetch(`${API}/scenarios`);
+    if (!res.ok) throw new Error(res.status);
+    state.scenarios = await res.json();
+  } catch {
+    state.scenarios = [{ id: "live", label: "Live now" }];
+    setStatus("⚠ Backend not reachable — start it with make demo (or make mock without data)", "error");
+  }
+  $("scenario").innerHTML = state.scenarios
+    .map((s) => `<option value="${esc(s.id)}">${esc(s.label)}</option>`).join("");
+  const heat = state.scenarios.find((s) => s.id.startsWith("heatwave"));
+  if (heat) $("scenario").value = heat.id;   // the demo starts with the heatwave
+  syncSliderToScenario();
+}
+
+function syncSliderToScenario() {
+  // A scenario is one recorded day: start at its default hour; live starts now.
+  const sc = currentScenario();
+  let val;
+  if (sc?.default_at) {
+    val = 2 * parseInt(sc.default_at.slice(11, 13), 10) + (parseInt(sc.default_at.slice(14, 16), 10) >= 30 ? 1 : 0);
+  } else {
+    const d = new Date();
+    val = 2 * d.getHours() + (d.getMinutes() >= 30 ? 1 : 0);
+  }
+  departSlider.value = val;
+  departOut.textContent = sliderToTime(val);
+}
 
 function sliderToTime(val) {
   const h = Math.floor(val / 2);
   const m = val % 2 === 0 ? "00" : "30";
-  return `${String(h).padStart(2, "0")}:${m}`;
+  return `${pad(h)}:${m}`;
 }
 
 function departIso() {
-  const val = +departSlider.value;
-  const h = Math.floor(val / 2);
-  const m = val % 2 === 0 ? 0 : 30;
-  const base = new Date();
-  base.setHours(h, m, 0, 0);
-  return base.toISOString();
+  // Scenario: its own date and UTC offset; live: today in the browser's time zone.
+  const hhmm = `${sliderToTime(+departSlider.value)}:00`;
+  const sc = currentScenario();
+  if (sc?.default_at) return `${sc.default_at.slice(0, 10)}T${hhmm}${sc.default_at.slice(19)}`;
+  const d = new Date();
+  const off = -d.getTimezoneOffset();
+  const tz = `${off >= 0 ? "+" : "-"}${pad(Math.floor(Math.abs(off) / 60))}:${pad(Math.abs(off) % 60)}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${hhmm}${tz}`;
+}
+
+function queryParams() {
+  return new URLSearchParams({ scenario: $("scenario").value, at: departIso(), profile: $("profile").value });
 }
 
 // ── DEBOUNCED FIND ────────────────────────────────────────────────
@@ -294,210 +241,96 @@ function debounceFind() {
 }
 
 // ── REQUEST BODY ──────────────────────────────────────────────────
-function requestBody(mode = "fast") {
+function requestBody() {
   return {
-    waypoints: state.waypoints.map((p) => ({ lat: p.lat, lon: p.lng })),
-    profile: document.getElementById("profile").value,
-    scenario: document.getElementById("scenario").value,
+    points: state.waypoints.map((p) => ({ lat: +p.lat.toFixed(6), lon: +p.lng.toFixed(6) })),
+    profile: $("profile").value,
+    scenario: $("scenario").value,
     depart_at: departIso(),
-    optimize_order: document.getElementById("optimize").checked,
-    mode,
+    optimize_order: $("optimize").checked,
   };
 }
 
-// ── FIND ROUTES (mock or real) ────────────────────────────────────
+// ── FIND ROUTES ───────────────────────────────────────────────────
 async function findRoutes() {
   if (state.waypoints.length < 2) return;
 
   const currentReqId = ++state.reqId;
-  console.log(`[Demo] findRoutes() triggered. USE_MOCK is set to ${USE_MOCK}.`);
   setStatus('<span class="spinner"></span> Computing…', "loading");
 
-  let data;
-  if (USE_MOCK) {
-    // Simulate network latency
-    await new Promise((r) => setTimeout(r, 120));
-    if (currentReqId !== state.reqId) return;
-
-    // Deep copy mock to avoid permanent mutations across renders
-    data = JSON.parse(JSON.stringify(MOCK_RESPONSE));
-    
-    // Random jitter to prove UI reactivity on slider/dropdown changes
-    const timeOffset = Math.floor(Math.random() * 5) - 2; // -2 to +2 min
-    data.routes.forEach(r => {
-      r.metrics.time_min = Math.max(1, r.metrics.time_min + timeOffset);
+  let res, data;
+  try {
+    res = await fetch(`${API}/route`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(requestBody()),
     });
-    data.front.forEach(p => {
-      p.time_min = Math.max(1, p.time_min + (Math.random() * 2 - 1));
-      p.exposure = Math.max(0, p.exposure + (Math.random() * 0.5 - 0.25));
-    });
-  } else {
-    try {
-      const res = await fetch(`${API}/routes`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(requestBody("fast")),
-      });
-      if (currentReqId !== state.reqId) return;
-
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({}));
-        if (currentReqId === state.reqId) setStatus("⚠ " + (err.detail ?? `Error ${res.status}`), "error");
-        return;
-      }
-      data = await res.json();
-    } catch (e) {
-      if (currentReqId === state.reqId) setStatus("⚠ Network error — is the backend running?", "error");
-      return;
-    }
+    data = await res.json();
+  } catch {
+    if (currentReqId === state.reqId) setStatus("⚠ Network error — is the backend running?", "error");
+    return;
   }
-
   if (currentReqId !== state.reqId) return;
 
-  drawRoutes(data.routes);
-  renderCards(data.routes);
-  renderPareto(data.front);
-  setStatus(conditionsLine(data.conditions) + ` · computed in ${Math.round(data.timing_ms.total)} ms`);
-}
-
-// ── DEEP SEARCH (streaming NDJSON) ───────────────────────────────
-async function deepSearch() {
-  if (state.waypoints.length < 2) return;
-
-  if (USE_MOCK) {
-    // In mock mode, just show a fake animation then the mock result
-    setStatus('<span class="spinner"></span> Evolving… generation 0', "loading");
-    let gen = 0;
-    const mockFront = [...MOCK_RESPONSE.front];
-    const interval = setInterval(() => {
-      gen++;
-      // add a fake evo point each generation
-      mockFront.push({
-        time_min: 24 + Math.random() * 12,
-        exposure: 2 + Math.random() * 5,
-        source: "evo",
-        supported: Math.random() > 0.6,
-      });
-      renderPareto(mockFront);
-      setStatus(`<span class="spinner"></span> Evolving… generation ${gen}`, "loading");
-      if (gen >= 8) {
-        clearInterval(interval);
-        drawRoutes(MOCK_RESPONSE.routes);
-        renderCards(MOCK_RESPONSE.routes);
-        renderPareto(mockFront);
-        setStatus(conditionsLine(MOCK_RESPONSE.conditions) + " · deep search done");
-      }
-    }, 200);
+  if (!res.ok) {
+    setStatus("⚠ " + errorText(data), "error");
     return;
   }
 
-  setStatus('<span class="spinner"></span> Evolving…', "loading");
-
-  try {
-    const res = await fetch(`${API}/routes/stream`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(requestBody("deep")),
-    });
-
-    const reader = res.body.getReader();
-    const dec = new TextDecoder();
-    let buf = "";
-
-    for (;;) {
-      const { value, done } = await reader.read();
-      if (done) break;
-      buf += dec.decode(value, { stream: true });
-      let nl;
-      while ((nl = buf.indexOf("\n")) >= 0) {
-        const line = buf.slice(0, nl).trim();
-        buf = buf.slice(nl + 1);
-        if (!line) continue;
-        const ev = JSON.parse(line);
-        if (ev.type === "gen") {
-          renderPareto(ev.front);
-          setStatus(`<span class="spinner"></span> Evolving… generation ${ev.gen}`, "loading");
-        }
-        if (ev.type === "result") {
-          drawRoutes(ev.routes);
-          renderCards(ev.routes);
-          renderPareto(ev.front);
-          setStatus(conditionsLine(ev.conditions ?? {}) + " · deep search done");
-        }
-      }
-    }
-  } catch (e) {
-    setStatus("⚠ Stream error", "error");
-  }
+  state.lastResult = data;
+  drawRoutes(data.routes);
+  renderComparison(data);
+  renderCards(data);
+  setStatus(conditionsLine(data.conditions, data.sun) + ` · computed in ${Math.round(data.timing_ms.total)} ms`);
 }
 
-// ── HELPERS ───────────────────────────────────────────────────────
-function getColorForDiscomfort(val) {
-  // 0 (green) -> 5 (yellow) -> 10 (red)
-  if (val <= 5) {
-    const r = Math.round(255 * (val / 5));
-    return `rgb(${r}, 200, 50)`;
-  } else {
-    const g = Math.round(200 * (1 - ((val - 5) / 5)));
-    return `rgb(255, ${g}, 50)`;
+function errorText(d) {
+  if (d.error === "point_outside_area") {
+    const i = d.detail?.index;
+    return `Point ${i != null ? letter(i) + " " : ""}is too far from the Kraków bike network — move it closer to a street.`;
   }
+  if (d.error === "validation" && Array.isArray(d.detail)) {
+    const p = d.detail.find((e) => e.loc?.[0] === "points" && Number.isInteger(e.loc[1]));
+    if (p) return `Point ${letter(p.loc[1])} is outside Kraków.`;
+  }
+  return {
+    no_route: "No bike route between these points.",
+    validation: "Invalid request.",
+    internal: "Server error — see the backend log.",
+  }[d.error] ?? "Server error.";
 }
 
 // ── DRAW ROUTES ───────────────────────────────────────────────────
 function drawRoutes(routes) {
-  console.log(`[Demo] Rendering ${routes.length} mock routes (GeoJSON) on the map.`);
-  state.lastRoutes = routes; // Save for redraws in activateCard
-  
   Object.values(state.routeLayers).forEach((l) => map.removeLayer(l));
   state.routeLayers = {};
 
-  // Draw fastest first so cleanest ends up on top
-  const ordered = [...routes].sort((a, b) => {
-    const rank = { fastest: 0, balanced: 1, cleanest: 2 };
-    return rank[a.id] - rank[b.id];
-  });
+  // Fastest first, the active route last so it ends up on top
+  const ordered = [...routes].sort((a, b) =>
+    (a.id === state.activeRoute) - (b.id === state.activeRoute) || (ROUTE_STYLE[a.id]?.rank ?? 0) - (ROUTE_STYLE[b.id]?.rank ?? 0));
 
   for (const r of ordered) {
     const isActive = r.id === state.activeRoute;
-    const baseColor = COLORS[r.id] ?? "#334155";
-    
-    // Feature group to hold the entire route (base line + optional segments)
+    const style = ROUTE_STYLE[r.id] ?? { weight: 5, dashArray: null };
     const layerGroup = L.featureGroup();
-    
-    if (isActive && r.segments && r.segments.length > 0) {
-      // Draw segmented route for explainability
+
+    if (isActive && r.segments?.length) {
+      // Segments coloured by discomfort explain where and why the ride is uncomfortable
+      const coords = r.geometry.coordinates;
+      L.geoJSON(r.geometry, { style: { color: "#fff", weight: style.weight + 4, opacity: 0.9 } }).addTo(layerGroup);
       for (const seg of r.segments) {
-        const segCoords = r.geometry.coordinates.slice(seg.coords_from, seg.coords_to + 1);
-        // GeoJSON uses [lon, lat], Leaflet polyline needs [lat, lon]
-        const latLngs = segCoords.map(c => [c[1], c[0]]);
-        
-        L.polyline(latLngs, {
-          color: getColorForDiscomfort(seg.discomfort),
-          weight: 8,
-          opacity: 0.9,
-        })
-        .bindTooltip(`${seg.reason} (Discomfort: ${seg.discomfort.toFixed(1)})`, {
-          className: "segment-tooltip", sticky: true
-        })
-        .addTo(layerGroup);
+        const latLngs = coords.slice(seg.from, seg.to + 1).map((c) => [c[1], c[0]]);
+        L.polyline(latLngs, { color: getColorForDiscomfort(seg.discomfort * 10), weight: style.weight + 1, opacity: 0.95 })
+          .bindTooltip(`${esc(r.label)}: ${REASON_LABELS[seg.reason] ?? esc(seg.reason)} · discomfort ${(seg.discomfort * 10).toFixed(1)}/10`,
+            { className: "segment-tooltip", sticky: true })
+          .addTo(layerGroup);
       }
     } else {
-      // Draw single solid line
-      // Differentiate thickness for accessibility (color-blind friendliness)
-      const weightMap = { fastest: 4, balanced: 6, cleanest: 8 };
-      
       L.geoJSON(r.geometry, {
-        style: {
-          color: baseColor,
-          weight: isActive ? (weightMap[r.id] + 2) : weightMap[r.id],
-          opacity: isActive ? 1.0 : 0.25,
-          dashArray: r.id === "fastest" ? "8, 8" : null, // Add dashed line for fastest
-        },
+        style: { color: r.color, weight: style.weight, opacity: isActive ? 1.0 : 0.45, dashArray: style.dashArray },
       })
-      .bindTooltip(`${ROUTE_LABELS[r.id]}: ${r.metrics.time_min} min · ${(r.metrics.distance_m / 1000).toFixed(1)} km`, {
-        sticky: true,
-      })
-      .addTo(layerGroup);
+        .bindTooltip(`${esc(r.label)}: ${r.metrics.time_min} min · ${(r.metrics.distance_m / 1000).toFixed(1)} km`, { sticky: true })
+        .addTo(layerGroup);
     }
 
     layerGroup.on("click", () => activateCard(r.id));
@@ -505,71 +338,89 @@ function drawRoutes(routes) {
     state.routeLayers[r.id] = layerGroup;
   }
 
-  const allLayers = Object.values(state.routeLayers);
-  if (allLayers.length && !state.activeRoute) { // Fit bounds only on initial draw, not card click
-    const group = L.featureGroup(allLayers);
-    const bounds = group.getBounds();
-    if (bounds.isValid()) {
-      map.fitBounds(bounds, { padding: [50, 50] });
-    }
+  if (state.fitNext) {
+    const bounds = L.featureGroup(Object.values(state.routeLayers)).getBounds();
+    if (bounds.isValid()) map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
+    state.fitNext = false;
   }
 }
 
 function clearRoutes() {
   Object.values(state.routeLayers).forEach((l) => map.removeLayer(l));
   state.routeLayers = {};
-  state.lastRoutes = null;
-  state.activeRoute = null;
-  const cardsDiv = document.getElementById("cards");
-  if (cardsDiv) cardsDiv.innerHTML = "";
-  const cardsSec = document.getElementById("cardsSection");
-  if (cardsSec) cardsSec.style.display = "none";
-  const paretoSec = document.getElementById("paretoSection");
-  if (paretoSec) paretoSec.style.display = "none";
-  setStatus("📍 Click the map to add a start point.");
+  state.lastResult = null;
+  $("cards").innerHTML = "";
+  $("cardsSection").style.display = "none";
+  $("comparisonSection").style.display = "none";
+  refreshConditions();
+}
+
+// ── COMPARISON ────────────────────────────────────────────────────
+function renderComparison(data) {
+  const c = data.comparison;
+  const el = $("comparison");
+  const order = data.order ?? [];
+  const reordered = order.some((v, i) => v !== i);
+  const orderHtml = reordered
+    ? `<p class="comparison-note">Visiting order: ${order.map(letter).join(" → ")}</p>`
+    : "";
+
+  if (c.same_route) {
+    el.innerHTML = `<p class="comparison-same">✓ The fastest route is already the healthiest right now.</p>${orderHtml}`;
+  } else {
+    const row = (label, value, good) =>
+      `<span class="card-metric-label">${label}</span><span class="card-metric-val ${good == null ? "" : good ? "good" : "bad"}">${value}</span>`;
+    el.innerHTML = `
+      <div class="card-metrics">
+        ${row("Extra time", `+${c.time_delta_min.toFixed(1)} min (${formatPct(c.time_delta_pct)})`, null)}
+        ${row("PM2.5 inhaled", formatPct(c.pm25_dose_delta_pct), c.pm25_dose_delta_pct <= 0)}
+        ${row("Shade", `${c.shade_delta_pp >= 0 ? "+" : ""}${c.shade_delta_pp.toFixed(0)} pp`, c.shade_delta_pp >= 0)}
+        ${row("Heat stress", `${c.heat_stress_delta_min >= 0 ? "+" : ""}${c.heat_stress_delta_min.toFixed(1)} min`, c.heat_stress_delta_min <= 0)}
+      </div>${orderHtml}`;
+  }
+  $("comparisonSection").style.display = "";
 }
 
 // ── RENDER CARDS ──────────────────────────────────────────────────
-function renderCards(routes) {
-  console.log(`[Demo] Route cards updated in the UI.`);
-  const container = document.getElementById("cards");
-  if (!container) return;
+function renderCards(data) {
+  const container = $("cards");
   container.innerHTML = "";
+  const c = data.comparison;
+  const fastest = data.routes.find((r) => r.id === "fastest");
 
-  for (const r of routes) {
+  for (const r of data.routes) {
+    const m = r.metrics;
+    const isFastest = r.id === "fastest";
     const card = document.createElement("div");
-    card.className = "route-card";
+    card.className = "route-card" + (r.id === state.activeRoute ? " active" : "");
     card.dataset.id = r.id;
-    card.style.color = COLORS[r.id];
+    card.style.color = r.color;
 
-    const timeDiff = r.vs_fastest.time_pct !== 0
-      ? ` <span style="color:var(--color-muted)">(${formatPct(r.vs_fastest.time_pct)})</span>`
+    const timeDiff = !isFastest && !c.same_route
+      ? ` <span style="color:var(--color-muted)">(${formatPct(c.time_delta_pct)})</span>`
       : "";
-
-    // For fastest route show absolute dose; for others show relative delta
-    const pm25Diff = r.vs_fastest.pm25_dose_pct !== 0
-      ? formatPct(r.vs_fastest.pm25_dose_pct)
-      : `${r.metrics.pm25_dose_ug.toFixed(0)} µg (baseline)`;
-
-    const avoidHtml = r.avoids.length
-      ? `<div class="card-avoids">⚠ Avoids: ${r.avoids.join("; ")}</div>`
+    const dose = m.pm25_dose_ug == null ? "—" : `${m.pm25_dose_ug.toFixed(1)} µg`;
+    const doseDiff = !isFastest && !c.same_route && fastest?.metrics.pm25_dose_ug
+      ? ` (${formatPct(c.pm25_dose_delta_pct)})` : "";
+    const avoidHtml = r.avoids?.length
+      ? `<div class="card-avoids">⚠ Avoids: ${r.avoids.map(esc).join("; ")}</div>`
       : "";
 
     card.innerHTML = `
       <div class="card-header">
-        <span class="card-dot" style="background:${COLORS[r.id]}"></span>
-        <span class="card-title">${ROUTE_LABELS[r.id]}</span>
-        <span class="card-subtitle">${(r.metrics.distance_m / 1000).toFixed(1)} km · ${r.metrics.time_min} min${timeDiff}</span>
+        <span class="card-dot" style="background:${r.color}"></span>
+        <span class="card-title">${esc(r.label)}</span>
+        <span class="card-subtitle">${(m.distance_m / 1000).toFixed(1)} km · ${m.time_min} min${timeDiff}</span>
       </div>
       <div class="card-metrics">
-        <span class="card-metric-label">PM2.5 dose</span>
-        <span class="card-metric-val ${r.vs_fastest.pm25_dose_pct < 0 ? "good" : ""}">${pm25Diff}</span>
+        <span class="card-metric-label">PM2.5 inhaled</span>
+        <span class="card-metric-val ${!isFastest && c.pm25_dose_delta_pct < 0 ? "good" : ""}">${dose}${doseDiff}</span>
         <span class="card-metric-label">Shade</span>
-        <span class="card-metric-val">${r.metrics.shade_pct}%</span>
+        <span class="card-metric-val">${m.shade_pct.toFixed(0)}%</span>
         <span class="card-metric-label">Heat stress</span>
-        <span class="card-metric-val">${r.metrics.heat_stress_min} min</span>
+        <span class="card-metric-val">${m.heat_stress_min} min</span>
         <span class="card-metric-label">Discomfort</span>
-        <span class="card-metric-val ${r.metrics.discomfort_avg > 6 ? "bad" : r.metrics.discomfort_avg < 4 ? "good" : ""}">${r.metrics.discomfort_avg.toFixed(1)}/10</span>
+        <span class="card-metric-val ${m.avg_discomfort > 6 ? "bad" : m.avg_discomfort < 4 ? "good" : ""}">${m.avg_discomfort.toFixed(1)}/10</span>
       </div>
       ${avoidHtml}
     `;
@@ -578,178 +429,141 @@ function renderCards(routes) {
     container.appendChild(card);
   }
 
-  document.getElementById("cardsSection").style.display = "";
+  $("cardsSection").style.display = "";
 }
 
 function activateCard(id) {
   state.activeRoute = id;
-
   document.querySelectorAll(".route-card").forEach((c) => {
     c.classList.toggle("active", c.dataset.id === id);
   });
-
-  // Redraw map layers to show detailed segments for active route
-  if (state.lastRoutes) {
-    drawRoutes(state.lastRoutes);
-  }
+  // Redraw map layers to show detailed segments for the active route
+  if (state.lastResult) drawRoutes(state.lastResult.routes);
 }
 
-function formatPct(val) {
-  const sign = val > 0 ? "+" : "";
-  return `${sign}${val.toFixed(0)} %`;
+// ── DISCOMFORT MAP (GET /api/layers/shade) ────────────────────────
+function debounceShade() {
+  clearTimeout(state.shadeTimer);
+  state.shadeTimer = setTimeout(loadShadeLayer, 300);
 }
 
-// ── RENDER PARETO CHART ───────────────────────────────────────────
-function renderPareto(front) {
-  console.log(`[Demo] Pareto chart updated with ${front.length} data points.`);
-  const section = document.getElementById("paretoSection");
-  if (section) section.style.display = "";
-  
-  const canvas = document.getElementById("pareto");
-  if (!canvas) return;
+function removeShadeLayer() {
+  if (state.shadeLayer) map.removeLayer(state.shadeLayer);
+  state.shadeLayer = null;
+}
 
-  const sweepDataRaw = front.filter((p) => p.source === "sweep" && p.supported);
-  const sweepData = sweepDataRaw.map((p) => ({ x: p.time_min, y: p.exposure }));
-  const sweepColors = sweepDataRaw.map((p) => COLORS[p.route_id] || "#6b7280");
+async function loadShadeLayer() {
+  const on = $("shadeLayer").checked;
+  const tooFar = map.getZoom() < SHADE_MIN_ZOOM;
+  $("legend").hidden = !on;
+  $("legendScale").hidden = tooFar;
+  $("legendHint").hidden = !tooFar;
+  if (!on || tooFar) { removeShadeLayer(); return; }
 
-  const unsupportedData = front
-    .filter((p) => !p.supported && p.source !== "evo")
-    .map((p) => ({ x: p.time_min, y: p.exposure }));
-
-  const evoData = front
-    .filter((p) => p.source === "evo")
-    .map((p) => ({ x: p.time_min, y: p.exposure }));
-
-  const datasets = [
-    {
-      label: "Sweep",
-      data: sweepData,
-      backgroundColor: sweepColors,
-      pointRadius: 6,
-      pointHoverRadius: 8,
-    },
-    {
-      label: "★ Non-convex",
-      data: unsupportedData,
-      backgroundColor: "#94a3b8",
-      pointRadius: 5,
-      pointStyle: "triangle",
-    },
-    {
-      label: "EA (NSGA-II)",
-      data: evoData,
-      backgroundColor: "#f97316",
-      pointRadius: 6,
-      pointHoverRadius: 8,
-    },
-  ].filter((d) => d.data.length > 0);
-
-  if (state.chart) {
-    state.chart.destroy();
+  const reqId = ++state.shadeReqId;
+  const b = map.getBounds();
+  const params = queryParams();
+  params.set("bbox", [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()].map((v) => v.toFixed(5)).join(","));
+  let gj;
+  try {
+    const res = await fetch(`${API}/layers/shade?${params}`);
+    if (!res.ok) return;
+    gj = await res.json();
+  } catch {
+    return;
   }
+  if (reqId !== state.shadeReqId || !$("shadeLayer").checked) return;
 
-  state.chart = new Chart(canvas, {
-    type: "scatter",
-    data: { datasets },
-    options: {
-      responsive: true,
-      maintainAspectRatio: false,
-      plugins: {
-        legend: { position: "bottom", labels: { font: { size: 10 }, boxWidth: 10 } },
-        tooltip: {
-          callbacks: {
-            label: (ctx) =>
-              `${ctx.dataset.label}: ${ctx.parsed.x.toFixed(1)} min, discomfort ${ctx.parsed.y.toFixed(1)}`,
-          },
-        },
-      },
-      scales: {
-        x: {
-          title: { display: true, text: "Time (min)", font: { size: 10 } },
-          ticks: { font: { size: 10 } },
-        },
-        y: {
-          title: { display: true, text: "Exposure", font: { size: 10 } },
-          ticks: { font: { size: 10 } },
-        },
-      },
+  removeShadeLayer();
+  state.shadeLayer = L.geoJSON(gj, {
+    renderer: shadeRenderer,
+    pane: "shadePane",
+    style: (f) => ({ color: getColorForDiscomfort(f.properties.discomfort * 10), weight: 3, opacity: 0.75 }),
+    onEachFeature: (f, layer) => {
+      const p = f.properties;
+      layer.bindTooltip(`${esc(p.name ?? "Unnamed way")} · shade ${Math.round(p.shade * 100)}% · ` +
+        `${REASON_LABELS[p.reason] ?? p.reason} · discomfort ${(p.discomfort * 10).toFixed(1)}/10`, { sticky: true });
     },
-  });
+  }).addTo(map);
 }
 
 // ── CONDITIONS LINE ───────────────────────────────────────────────
-function conditionsLine(c) {
-  if (!c || !Object.keys(c).length) return "";
+function conditionsLine(c, sun) {
+  if (!c) return "";
   const parts = [];
   if (c.temperature_c != null) parts.push(`${c.temperature_c.toFixed(1)}°C`);
-  if (c.utci        != null) parts.push(`UTCI ${c.utci}`);
-  if (c.uv_index    != null) parts.push(`UV ${c.uv_index}`);
-  if (c.pm10_ugm3   != null) parts.push(`PM10 ${c.pm10_ugm3} µg/m³`);
-  if (c.data_age_s  != null && c.data_age_s > 3600)
-    parts.push(`data age: ${Math.round(c.data_age_s / 3600)} h`);
+  if (c.uv_index != null) parts.push(`UV ${c.uv_index.toFixed(1)}`);
+  if (c.pm25 != null) parts.push(`PM2.5 ${Math.round(c.pm25)} µg/m³`);
+  if (c.pm10 != null) parts.push(`PM10 ${Math.round(c.pm10)} µg/m³`);
+  if (sun?.elevation_deg != null) parts.push(sun.elevation_deg > 0 ? `sun ${Math.round(sun.elevation_deg)}°` : "night");
+  if (SOURCE_LABELS[c.source]) parts.push(SOURCE_LABELS[c.source]);
+  if (c.source !== "scenario" && c.data_age_s > 3600) parts.push(`data age ${Math.round(c.data_age_s / 3600)} h`);
   return parts.join(" · ");
+}
+
+async function refreshConditions() {
+  // Without a route the footer still shows the conditions for the chosen scenario and hour.
+  if (state.waypoints.length >= 2) return;
+  const reqId = ++state.reqId;
+  try {
+    const res = await fetch(`${API}/conditions?${queryParams()}`);
+    if (!res.ok || reqId !== state.reqId) return;
+    const c = await res.json();
+    const hint = state.waypoints.length ? "🏁 Click the map to add a destination." : "📍 Click the map to add a start point.";
+    setStatus(`${conditionsLine(c, c.sun)} · ${hint}`);
+  } catch {
+    /* the scenario loader already reported an unreachable backend */
+  }
 }
 
 // ── STATUS ────────────────────────────────────────────────────────
 function setStatus(html, cls = "") {
-  const footer = document.getElementById("status");
+  const footer = $("status");
   // Wrap in span so the CSS #status > * ellipsis rule fires
   footer.innerHTML = `<span>${html}</span>`;
   footer.className = cls;
 }
 
 // ── DEMO ROUTE ────────────────────────────────────────────────────
-// Pre-baked waypoints for hackathon demo (Rynek Główny → AGH Campus)
+// Kazimierz → Rondo Mogilskie → Nowa Huta in the heatwave: ECO trades a few minutes for a lot of shade.
 const DEMO_WAYPOINTS = [
-  { lat: 50.0614, lng: 19.9366 }, // Rynek Główny
-  { lat: 50.0472, lng: 19.9174 }, // AGH Kampus
+  { lat: 50.0510, lng: 19.9450 }, // Kazimierz, plac Nowy
+  { lat: 50.0720, lng: 20.0370 }, // Nowa Huta, plac Centralny
 ];
 
 function loadDemoRoute() {
-  // Clear any existing waypoints
-  [...state.markers].forEach((m) => map.removeLayer(m));
-  state.waypoints = [];
-  state.markers = [];
-  clearRoutes();
-
-  // Place demo markers
+  clearAll();
+  const heat = state.scenarios.find((s) => s.id.startsWith("heatwave"));
+  if (heat) $("scenario").value = heat.id;
+  $("profile").value = "senior";
+  syncSliderToScenario();
   DEMO_WAYPOINTS.forEach((latlng) => addWaypoint(latlng));
-
-  // Set scenario to heatwave for the most visual demo
-  const scen = document.getElementById("scenario");
-  if (scen) scen.value = "heatwave_2025-07-03T14";
-  const prof = document.getElementById("profile");
-  if (prof) prof.value = "senior";
-  const dep = document.getElementById("depart");
-  if (dep) dep.value = 28; // 14:00
-  if (departOut) departOut.textContent = sliderToTime(28);
 }
 
 // ── INIT ──────────────────────────────────────────────────────────
-if (departSlider && departOut) {
-  departSlider.addEventListener("input", () => {
-    departOut.textContent = sliderToTime(+departSlider.value);
-    if (state.waypoints.length >= 2) debounceFind();
-  });
-  departOut.textContent = sliderToTime(+departSlider.value);
+function onConditionsChange() {
+  if (state.waypoints.length >= 2) debounceFind();
+  else refreshConditions();
+  if ($("shadeLayer").checked) debounceShade();
 }
 
-const scenSelect = document.getElementById("scenario");
-if (scenSelect) scenSelect.addEventListener("change", () => {
-  if (state.waypoints.length >= 2) debounceFind();
+departSlider.addEventListener("input", () => {
+  departOut.textContent = sliderToTime(+departSlider.value);
+  onConditionsChange();
 });
-
-const profSelect = document.getElementById("profile");
-if (profSelect) profSelect.addEventListener("change", () => {
-  if (state.waypoints.length >= 2) debounceFind();
+$("scenario").addEventListener("change", () => {
+  syncSliderToScenario();
+  onConditionsChange();
 });
+$("profile").addEventListener("change", onConditionsChange);
+$("optimize").addEventListener("change", () => state.waypoints.length >= 2 && debounceFind());
+$("shadeLayer").addEventListener("change", loadShadeLayer);
+map.on("moveend", () => $("shadeLayer").checked && debounceShade());
 
-const fBtn = document.getElementById("findBtn");
-if (fBtn) fBtn.addEventListener("click", findRoutes);
-const dBtn = document.getElementById("deepBtn");
-if (dBtn) dBtn.addEventListener("click", deepSearch);
-const dmBtn = document.getElementById("demoBtn");
-if (dmBtn) dmBtn.addEventListener("click", loadDemoRoute);
+$("findBtn").addEventListener("click", findRoutes);
+$("clearBtn").addEventListener("click", clearAll);
+$("demoBtn").addEventListener("click", loadDemoRoute);
 
 renderWaypoints();
 updateButtons();
+loadScenarios().then(refreshConditions);

@@ -259,3 +259,17 @@ def test_shade_layer_keeps_one_direction_and_caps_features(client):
 def test_shade_layer_bad_query_400(client, query):
     r = client.get(f"/api/layers/shade?{query}")
     assert r.status_code == 400 and r.get_json()["error"] == "validation"
+
+
+# ---------- frontend served by Flask (app/static) ----------
+def test_frontend_is_served_and_calls_only_existing_endpoints(client):
+    import re
+
+    page = client.get("/")
+    assert page.status_code == 200 and b"app.js" in page.data
+    js = client.get("/app.js")
+    assert js.status_code == 200 and client.get("/style.css").status_code == 200
+    called = set(re.findall(r"\$\{API\}/([a-z/]+)", js.get_data(as_text=True)))
+    assert called >= {"route", "scenarios", "conditions", "layers/shade"}
+    routes = {rule.rule for rule in client.application.url_map.iter_rules()}
+    assert {f"/api/{path}" for path in called} <= routes

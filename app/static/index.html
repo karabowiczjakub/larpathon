@@ -4,6 +4,7 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>AirRoute Kraków</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌿</text></svg>" />
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
   <link rel="stylesheet" href="style.css" />
 </head>
@@ -13,11 +14,7 @@
     <div class="topbar-controls">
       <label>
         Scenario
-        <select id="scenario">
-          <option value="live">Live</option>
-          <option value="heatwave_2025-07-03T14">Heatwave — 3 Jul 2025, 14:00</option>
-          <option value="smog_2025-01-20T17">Smog — 20 Jan 2025, 17:00</option>
-        </select>
+        <select id="scenario"><option value="live">Loading…</option></select>
       </label>
       <label>
         Profile
@@ -43,25 +40,30 @@
         <ol id="waypoints" class="waypoints-list"></ol>
         <p class="hint" id="waypointHint">Click the map to add a start point.</p>
         <label class="optimize-label">
-          <input type="checkbox" id="optimize" /> Optimize order
+          <input type="checkbox" id="optimize" /> Optimize order of via points
         </label>
+        <label class="optimize-label">
+          <input type="checkbox" id="shadeLayer" /> Show discomfort map
+        </label>
+        <div class="legend" id="legend" hidden>
+          <span id="legendScale" class="legend-scale"><span>comfortable</span><span class="legend-bar"></span><span>uncomfortable</span></span>
+          <span id="legendHint" hidden>🔍 Zoom in to street level to see the map.</span>
+        </div>
         <div class="buttons">
           <button id="findBtn" class="btn-primary" disabled>Find routes</button>
-          <button id="deepBtn" class="btn-secondary" disabled>Deep search ✨</button>
+          <button id="clearBtn" class="btn-secondary" disabled>Clear</button>
         </div>
         <button id="demoBtn" class="btn-demo">▶ Load demo route</button>
+      </section>
+
+      <section class="sidebar-section" id="comparisonSection" style="display:none">
+        <h2>Healthier vs fastest</h2>
+        <div id="comparison"></div>
       </section>
 
       <section class="sidebar-section" id="cardsSection" style="display:none">
         <h2>Routes</h2>
         <div id="cards"></div>
-      </section>
-
-      <section class="sidebar-section" id="paretoSection" style="display:none">
-        <h2>Pareto front</h2>
-        <div style="position: relative; height: 200px; width: 100%;">
-          <canvas id="pareto"></canvas>
-        </div>
       </section>
     </aside>
 
@@ -71,7 +73,6 @@
   <footer id="status"><span>📍 Click the map to add a start point.</span></footer>
 
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
   <script src="app.js"></script>
 </body>
 </html>

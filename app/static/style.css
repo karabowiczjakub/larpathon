@@ -289,6 +289,43 @@
   line-height: 1.4;
 }
 
+/* ── COMPARISON & LEGEND ────────────────────────────────── */
+.comparison-same {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-cleanest);
+}
+
+.comparison-note {
+  font-size: 11px;
+  color: var(--color-muted);
+  margin-top: 4px;
+}
+
+.legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10px;
+  color: var(--color-muted);
+  margin: -4px 0 10px 22px;
+}
+.legend[hidden], .legend [hidden] { display: none; }
+
+.legend-scale {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.legend-bar {
+  flex: 1;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(to right, rgb(0, 200, 50), rgb(255, 200, 50), rgb(255, 0, 50));
+}
+
 /* ── MAP ────────────────────────────────────────────────── */
 #map {
   flex: 1;
@@ -375,11 +412,23 @@
     min-height: 0;
   }
 
-  .topbar-controls {
-    gap: 8px;
+  /* The controls wrap onto extra rows, so the fixed bar and the layout below it grow together */
+  :root { --topbar-h: 112px; }
+
+  .topbar {
+    flex-wrap: wrap;
+    align-content: center;
+    row-gap: 6px;
+    padding: 6px 12px;
   }
 
-  #depart { width: 70px; }
+  .topbar h1 { width: 100%; }
+
+  .topbar-controls {
+    gap: 6px 10px;
+  }
+
+  #depart { width: 90px; }
 }
 
 /* ── LEAFLET TOOLTIPS & ERRORS ──────────────────────────── */

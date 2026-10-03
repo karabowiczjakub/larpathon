@@ -64,6 +64,7 @@ travel costs. Without it, the backend orders the points by straight-line distanc
 | `engine/ordering.py` | "optimize order" for via points |
 | `profiles.py` | speed, ventilation and ECO α per profile |
 | `mocks/` | stand-ins for roles 1–3 (synthetic grid over Kraków with real Dijkstra) |
+| `static/` | frontend (Role 5): Leaflet UI served at `/`; `./run_frontend_demo.sh` starts it with the backend |
 
 ## API additions to roles/04 §4.4 (backward compatible)
 
