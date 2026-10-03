@@ -1,5 +1,7 @@
 # AirRoute Kraków — plan projektu (HackYeah 2026)
 
+> **Aktualizacja 3.10.2026:** backend to **Flask** (nie FastAPI). Szczegółowe plany ról, kontrakty i zweryfikowane dane są w katalogu `roles/` — **mają pierwszeństwo** przed tym dokumentem. Ten plik traktuj jako tło koncepcyjne.
+
 > **Nazwa robocza.** Aplikacja webowa wyznaczająca trasy rowerowe po Krakowie, które chronią przed smogiem, upałem i UV (preferuje cień i zieleń). Zamiast jednej „najlepszej" trasy pokazuje **front Pareto**: kilka tras o różnym kompromisie *czas ↔ zdrowie*, z wyjaśnieniem, *dlaczego* każda z nich tak biegnie.
 
 ---

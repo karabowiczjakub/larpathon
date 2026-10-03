@@ -2,10 +2,12 @@
 
 ## Source of truth
 
-Before making changes, read `PLAN.md`.
+Backend framework: **Flask** (not FastAPI).
 
-`PLAN.md` is authoritative.
-If this file conflicts with `PLAN.md`, follow `PLAN.md`.
+Before making changes, read `roles/05_frontend.md`.
+
+`roles/05_frontend.md` is authoritative and takes precedence over this file and `PLAN.md`.
+Use `PLAN.md` for background only; where it conflicts with `roles/`, follow `roles/`.
 
 ## Responsibility
 
