@@ -6,6 +6,7 @@ import numpy as np
 from scipy.ndimage import map_coordinates
 
 from ..contracts import EdgeExposure
+from .fetch import REF_POINT
 from .fuzzy_profiles import PROFILES
 from .gios_sensors import GIOS_STATIONS, TRAFFIC_STATION
 
@@ -102,6 +103,86 @@ def _graph_arrays(graph) -> dict:
     return cached
 
 
+def _bilinear(mid_lonlat: np.ndarray, lats: tuple, lons: tuple) -> tuple[np.ndarray, np.ndarray]:
+    """Indeksy 4 sąsiednich węzłów regularnej siatki (wiersz = szerokość) i wagi dwuliniowe per krawędź."""
+    mid = np.asarray(mid_lonlat, dtype=np.float64)
+    def axis(vals, grid):
+        g = np.asarray(grid, dtype=np.float64)
+        i = np.clip(np.searchsorted(g, vals) - 1, 0, len(g) - 2)
+        f = np.clip((vals - g[i]) / (g[i + 1] - g[i]), 0.0, 1.0)      # poza siatką: najbliższy brzeg
+        return i, f
+    r, fr = axis(mid[:, 1], lats)
+    c, fc = axis(mid[:, 0], lons)
+    n = len(lons)
+    idx = np.stack([r * n + c, r * n + c + 1, (r + 1) * n + c, (r + 1) * n + c + 1], axis=1)
+    w = np.stack([(1 - fr) * (1 - fc), (1 - fr) * fc, fr * (1 - fc), fr * fc], axis=1).astype(np.float32)
+    return idx, w
+
+
+# Street heat map (pipeline/heat_map_build.py): local Landsat surface-temperature anomaly per edge. Surface is
+# not air: dense blocks vs parks differ by ~7 °C on the surface but ~1-2 °C in the air (park cool islands),
+# hence the factor; the effect fades with wind and is capped.
+HEAT_FILE = "edge_heat.npz"
+HEAT_TO_AIR = 0.2
+HEAT_CAP_C = 2.0
+_heat_warned: set[str] = set()
+
+
+def edge_heat(graph) -> np.ndarray | float:
+    """Local surface-temperature anomaly [°C] per edge, or 0 when the map is missing or for another graph."""
+    cached = _graph_arrays(graph)
+    if "heat" not in cached:
+        path = LUT_DIR / HEAT_FILE
+        heat: np.ndarray | float = 0.0
+        try:
+            with np.load(path) as z:
+                values = z["local_lst_anomaly_c"].astype(np.float32)
+            if len(values) == len(graph.edge_highway):
+                heat = values
+            elif "length" not in _heat_warned:
+                _heat_warned.add("length")
+                log.warning("%s belongs to another graph (%d edges, graph has %d): run make heat-map",
+                            path, len(values), len(graph.edge_highway))
+        except FileNotFoundError:
+            if "missing" not in _heat_warned:
+                _heat_warned.add("missing")
+                log.warning("no street heat map (%s): same air temperature within each neighbourhood", path)
+        cached["heat"] = heat
+    return cached["heat"]
+
+
+def street_heat(heat, wind_ms) -> np.ndarray | float:
+    """Air-temperature correction [°C] from the heat map: strongest in calm weather (<= 2 m/s)."""
+    calm = np.clip(1.0 - (np.asarray(wind_ms) - 2.0) / 6.0, 0.3, 1.0)
+    return np.clip(HEAT_TO_AIR * heat * calm, -HEAT_CAP_C, HEAT_CAP_C)
+
+
+def local_weather(grid, graph) -> tuple[np.ndarray, np.ndarray] | tuple[float, float]:
+    """Różnica temperatury [°C] i mnożnik wiatru per krawędź z siatki modelu pogody (ctx.weather_grid).
+    Pusta siatka (stare scenariusze, brak danych) = ta sama pogoda w całym mieście."""
+    if not grid:
+        return 0.0, 1.0
+    lats = tuple(sorted({p.lat for p in grid}))
+    lons = tuple(sorted({p.lon for p in grid}))
+    if len(lats) < 2 or len(lons) < 2 or len(grid) != len(lats) * len(lons):
+        log.warning("weather grid is not regular (%d points), ignored", len(grid))
+        return 0.0, 1.0
+    cached = _graph_arrays(graph)
+    key = ("bilinear", lats, lons)
+    if key not in cached:
+        ref = np.array([[REF_POINT[1], REF_POINT[0]]])
+        cached[key] = (_bilinear(graph.edge_mid_lonlat, lats, lons), _bilinear(ref, lats, lons))
+    (idx, w), (ref_idx, ref_w) = cached[key]
+    order = {(p.lat, p.lon): p for p in grid}
+    pts = [order[(la, lo)] for la in lats for lo in lons]
+    dt = np.array([p.dt_c for p in pts], np.float32)
+    wr = np.array([p.wind_ratio for p in pts], np.float32)
+    # Anchored at the city point: the city temperature and wind are measured/forecast there (REF_POINT),
+    # so the interpolated field must give exactly 0 °C and x1 there, not the grid's local smoothing.
+    dt_ref, wr_ref = float((ref_w * dt[ref_idx]).sum()), float((ref_w * wr[ref_idx]).sum())
+    return (w * dt[idx]).sum(axis=1) - dt_ref, (w * wr[idx]).sum(axis=1) / max(wr_ref, 1e-3)
+
+
 def spatial_factors(stations, w: np.ndarray) -> dict[str, np.ndarray]:
     """Mnożnik tła per krawędź: IDW z (wartość stacji / mediana stacji) dla stacji tła.
     Stacje bez wartości pomijamy (renormalizacja wag); brak klucza = tło jednolite."""
@@ -171,9 +252,11 @@ def compute_edge_exposure(ctx, shade, graph, tree_frac, profile) -> EdgeExposure
     tree_frac = np.asarray(tree_frac, dtype=np.float32)
 
     rad = min(1.0, ctx.shortwave_wm2 / 600)
-    ta = ctx.temperature_c - 1.0 * tree_frac * rad
+    dt_local, wind_local = local_weather(ctx.weather_grid, graph)     # dolina, wzgórza, wyspa ciepła (~2 km)
+    dt_street = street_heat(edge_heat(graph), ctx.wind_ms * wind_local)   # kwartał zabudowy vs park (~150 m)
+    ta = ctx.temperature_c + dt_local + dt_street - 1.0 * tree_frac * rad
     tmrt = ta + (1 - shade) * 0.03 * ctx.dni_wm2 + (2.0 if ctx.shortwave_wm2 > 100 else 0.0)
-    v = np.clip(ctx.wind_ms * (1 - 0.3 * tree_frac), 0.5, 17)
+    v = np.clip(ctx.wind_ms * wind_local * (1 - 0.3 * tree_frac), 0.5, 17)
     utci = utci_fast(ta, tmrt, v, ctx.humidity_pct)
 
     g = _graph_arrays(graph)

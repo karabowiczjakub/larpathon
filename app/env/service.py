@@ -8,8 +8,8 @@ from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
 
-from ..contracts import EnvironmentalContext, StationReading
-from .fetch import fetch_hours
+from ..contracts import EnvironmentalContext, StationReading, WeatherPoint
+from .fetch import GRID_POINTS, fetch_hours
 
 TZ = ZoneInfo("Europe/Warsaw")
 log = logging.getLogger(__name__)
@@ -82,13 +82,15 @@ class EnvironmentService:
         key = min(hours, key=lambda k: abs(datetime.fromisoformat(k).replace(tzinfo=TZ) - at))
         h = hours[key]
         st = tuple(StationReading(**x) for x in h.get("stations", []))
+        g = h.get("grid") or {}
+        grid = tuple(WeatherPoint(la, lo, dt, wr) for (la, lo), dt, wr in zip(GRID_POINTS, g.get("dt", ()), g.get("wr", ())))
         return EnvironmentalContext(
             timestamp=datetime.fromisoformat(key).replace(tzinfo=TZ), source=source,
             temperature_c=h["temperature_2m"], humidity_pct=h["relative_humidity_2m"],
             wind_ms=h["wind_speed_10m"], shortwave_wm2=h["shortwave_radiation"] or 0.0,
             dni_wm2=h["direct_normal_irradiance"] or 0.0, uv_index=h["uv_index"] or 0.0,
             pm25=h["pm25_city"], pm10=h["pm10_city"], no2=h["no2_city"],
-            stations=st, data_age_s=age)
+            stations=st, data_age_s=age, weather_grid=grid)
 
 
 def _local(at: datetime) -> datetime:

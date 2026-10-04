@@ -1,7 +1,8 @@
 import json
+import sys
 from pathlib import Path
 
-from app.env.fetch import fetch_hours
+from app.env.fetch import HISTORICAL_FORECAST_URL, fetch_grid, fetch_hours
 
 OUT = Path(__file__).resolve().parents[1] / "scenarios"
 SCEN = [
@@ -22,5 +23,21 @@ def build_scenarios():
               "stations/h:", min(len(x["stations"]) for x in hours.values()), "-", max(len(x["stations"]) for x in hours.values()))
 
 
+def add_weather_grid():
+    """Dopisuje siatkę pogody do istniejących scenariuszy bez ponownego pobierania GIOŚ (wartości dla
+    miasta zostają bez zmian; siatka to tylko różnice względem punktu miasta)."""
+    for s in SCEN:
+        path = OUT / f"{s['id']}.json"
+        data = json.loads(path.read_text(encoding="utf-8"))
+        grid = fetch_grid({"start_date": s["day"], "end_date": s["day"]}, HISTORICAL_FORECAST_URL)
+        missing = [t for t in data["hours"] if t not in grid]
+        assert not missing, f"{s['id']}: no grid for {missing}"
+        for t, h in data["hours"].items():
+            h["grid"] = grid[t]
+        path.write_text(json.dumps(data, ensure_ascii=False, indent=1), encoding="utf-8")
+        dts = [v for t in data["hours"] for v in grid[t]["dt"]]
+        print(s["id"], "grid added: dT", round(min(dts), 1), "…", round(max(dts), 1), "°C")
+
+
 if __name__ == "__main__":
-    build_scenarios()
+    add_weather_grid() if "--grid-only" in sys.argv else build_scenarios()

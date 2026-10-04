@@ -123,3 +123,45 @@ def test_gios_archive_is_cet_and_paged(monkeypatch):
     monkeypatch.setattr(fetch.time, "sleep", lambda s: None)
     assert fetch.gios_series(2750, "2025-07-03", "2025-07-03") == {"2025-07-03T14:00": 30.0}   # 13:00 CET = 14:00 CEST
     assert calls[0]["dateFrom"] == "2025-07-02 23:00" and len(calls) == 2
+
+
+def test_weather_grid_is_relative_to_the_city_point(monkeypatch):
+    """One multi-location call: the first location is REF_POINT, the rest GRID_POINTS (row-major)."""
+    n = len(fetch.GRID_POINTS)
+
+    class Resp:
+        def raise_for_status(self):
+            pass
+
+        def json(self):
+            ref = {"hourly": {"time": ["2025-07-03T03:00"], "temperature_2m": [17.0], "wind_speed_10m": [2.0]}}
+            cells = [{"hourly": {"time": ["2025-07-03T03:00"], "temperature_2m": [17.0 + i * 0.1], "wind_speed_10m": [1.0]}}
+                     for i in range(n)]
+            return [ref, *cells]
+
+    calls = []
+    monkeypatch.setattr(fetch.httpx, "get", lambda url, params, timeout: calls.append((url, params)) or Resp())
+    grid = fetch.fetch_grid({"start_date": "2025-07-03", "end_date": "2025-07-03"}, fetch.HISTORICAL_FORECAST_URL)
+    g = grid["2025-07-03T03:00"]
+    assert g["dt"][0] == 0.0 and g["dt"][-1] == pytest.approx((n - 1) * 0.1) and g["wr"] == [0.5] * n
+    assert calls[0][1]["latitude"].split(",")[0] == str(fetch.REF_POINT[0]) and len(calls[0][1]["latitude"].split(",")) == n + 1
+
+
+def test_weather_grid_failure_means_uniform_weather(monkeypatch):
+    def down(*a, **kw):
+        raise fetch.httpx.ConnectError("offline")
+    monkeypatch.setattr(fetch.httpx, "get", down)
+    assert fetch.fetch_grid_safe({"past_days": 1}, fetch.FORECAST_URL) == {}
+
+
+def test_context_carries_the_weather_grid(tmp_path):
+    hours = _smog_hours()
+    key = "2025-01-20T17:00"
+    n = len(fetch.GRID_POINTS)
+    hours[key] = {**hours[key], "grid": {"dt": [0.5] * n, "wr": [0.8] * n}}
+    ctx = EnvironmentService._ctx_from_hours(hours, datetime(2025, 1, 20, 17, tzinfo=TZ), "scenario", 0.0)
+    assert len(ctx.weather_grid) == n and ctx.weather_grid[0].dt_c == 0.5 and ctx.weather_grid[0].wind_ratio == 0.8
+    assert "weather_grid" not in ctx.summary() and "stations" not in ctx.summary()
+    old_file = {t: {k: v for k, v in h.items() if k != "grid"} for t, h in _smog_hours().items()}
+    old = EnvironmentService._ctx_from_hours(old_file, datetime(2025, 1, 20, 17, tzinfo=TZ), "scenario", 0.0)
+    assert old.weather_grid == ()          # scenario files without a grid: the same weather everywhere

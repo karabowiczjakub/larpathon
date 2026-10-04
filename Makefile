@@ -19,14 +19,20 @@ test:
 bench:  ## 50 random A->B routes on the current modules: p50/p95 latency and ECO vs FASTEST
 	$(PY) -m scripts.tune_alpha --pairs 50
 
-.PHONY: shade
+.PHONY: shade heat-map
 shade:
 	$(PYTHON) -m pipeline.shade_build $(SHADE_ARGS)
 
+heat-map:  ## street heat map from Landsat (needs graph + internet; rebuild after the graph changes)
+	$(PYTHON) -m pipeline.heat_map_build
+
 # --- Rola 2: Environment (scenariusze i road_factors.json wymagają internetu) ---
-.PHONY: scenarios fuzzy calibrate-road env-report env-test
+.PHONY: scenarios scenarios-grid fuzzy calibrate-road env-report env-test
 scenarios:
 	$(PYTHON) -m pipeline.scenarios_build
+
+scenarios-grid:  ## add the weather grid to the existing scenario files (no GIOŚ refetch)
+	$(PYTHON) -m pipeline.scenarios_build --grid-only
 
 fuzzy:
 	$(PYTHON) -m pipeline.fuzzy_build
@@ -38,4 +44,4 @@ env-report:
 	$(PYTHON) -m scripts.env_report
 
 env-test:
-	$(PYTHON) -m pytest -q tests/test_env.py tests/test_exposure.py tests/test_fuzzy.py tests/test_env_integration.py
+	$(PYTHON) -m pytest -q tests/test_env.py tests/test_exposure.py tests/test_fuzzy.py tests/test_env_integration.py tests/test_heat_map.py

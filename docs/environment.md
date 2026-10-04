@@ -78,6 +78,40 @@ NO₂ 10/25/60/100/150 µg/m³ (airindex.eea.europa.eu); UV wg WHO 3 / 6 / 8 / 1
 `docs/env_discomfort.png`: dyskomfort w funkcji UTCI i indeksu powietrza dla 4 profili (Athlete
 różni się przez `ve_ratio` = 1,7 przed indeksem, więc na panelu „Air” pokrywa się ze Standard).
 
+## Lokalna pogoda: siatka modelu + mapa ciepła ulic (4.10.2026)
+
+Wcześniej cała pogoda pochodziła z jednego punktu (50,06; 19,94), więc temperatura była ta sama w całym
+mieście, a różnice między ulicami dawał tylko cień. Teraz są dwie dodatkowe warstwy:
+
+| Warstwa | Skąd | Skala | Co daje |
+|---|---|---|---|
+| **Siatka modelu** (`fetch_grid`) | Open-Meteo best_match = **DMI HARMONIE-AROME 2 km**; 54 punkty (6×9, co ~3,7 km), jedno zapytanie; scenariusze z `historical-forecast-api` (ERA5 z archiwum nie widzi miasta) | ~2–4 km | wyspa ciepła miasta, dolina Wisły, chłodniejsze wzgórza, lokalny wiatr |
+| **Mapa ciepła ulic** (`pipeline/heat_map_build.py`) | Landsat 8/9 Collection 2 L2 (temperatura powierzchni), 12 bezchmurnych scen letnich 2022–2025, Microsoft Planetary Computer, bez klucza | ~150 m | gęsty kwartał vs park w tej samej okolicy |
+
+- **Siatka** to tylko różnice względem punktu miasta z tego samego modelu (`dt_c`, `wind_ratio` w
+  `EnvironmentalContext.weather_grid`), interpolowane dwuliniowo na krawędzie i **zakotwiczone w punkcie miasta**
+  (tam dokładnie 0 °C i ×1). Wartości dla miasta, także w scenariuszach, się nie zmieniają.
+- **Mapa ciepła**: mediana z odchyleń dnia → wygładzenie 150 m **minus** wygładzenie 1,5 km. Zostaje tylko to,
+  czego model 2 km nie widzi, więc wyspa ciepła nie liczy się dwa razy. Przeliczenie na powietrze:
+  `ΔT = 0,2 · anomalia · spokój`, gdzie `spokój = clip(1 − (wiatr − 2)/6, 0,3, 1)`, z limitem ±2 °C.
+  Współczynnik 0,2: kwartał Kazimierza vs Park Jordana różnią się o ~7 °C na powierzchni, a o ~1,4 °C
+  w powietrzu, czyli typowo dla „chłodnych wysp” parków (1–2 °C).
+- **Weryfikacja przed wdrożeniem:**
+  - siatka pokazuje centrum cieplejsze o 1,4 °C w dzień i 3,8 °C w nocy (prognoza 4.10.2026), a w upalną noc
+    3.07.2025 nawet o ~7 °C. KNMI HARMONIE pokazuje ten sam wzór, a ICON-EU (7 km) i ERA5 go nie widzą;
+  - pomiary w Krakowie (Bokwa i Limanówka 2014, DIE ERDE 145): wyspa ciepła średnio 2,4 K, max 9,9 K,
+    dno doliny Wisły najcieplejsze, ~50 m wyżej o połowę mniej upalnych dni;
+  - mapa Landsat: Kazimierz +4,8, Rynek +3,9, Park Jordana −2,1, Błonia −1,8, Las Wolski −3,1 °C (powierzchnia).
+- **Efekt (upał 3.07.2025):** o 14:00 Las Wolski odczuwalnie 31,5 → 28,7 °C, Kazimierz 37,8 → 38,5 °C; o 22:00
+  zamiast jednej temperatury w mieście centrum 24,4 °C, Bronowice 20,7 °C (nocna wyspa ciepła).
+- **Ograniczenia:** wąskie parki (Planty, ~50–100 m) są mniejsze niż rozdzielczość mapy; mapa jest z przelotów
+  dziennych (~11:00), a stosujemy ją też nocą; chłodzenie pod drzewami (`tree_frac`) częściowo pokrywa się z
+  chłodniejszymi parkami na mapie; współczynnik 0,2 to założenie do kalibracji czujnikami (np. Airly, Netatmo).
+- **Odporność:** brak odpowiedzi siatki → ta sama pogoda w całym mieście (log); brak `edge_heat.npz` albo
+  plik dla innego grafu → bez poprawki ulicznej (log). Kontrakt: dodane pole z wartością domyślną.
+- **Przebudowa:** `make heat-map` (po zmianie grafu; ~30 s), `make scenarios-grid` (siatka do scenariuszy bez
+  ponownego pobierania GIOŚ). Live dostaje siatkę przy każdym odświeżeniu.
+
 ## Odstępstwa od `roles/02` (sprawdzone w API 3.10.2026)
 
 - **Stanowiska dobowe.** Bujaka 2771/2773, Bulwarowa 2793, Wadów 17310 i Swoszowice 20321 dają

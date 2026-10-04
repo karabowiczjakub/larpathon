@@ -18,6 +18,18 @@ STATION_CARRY_H = 3                     # tyle godzin po ostatnim pomiarze pokaz
 RATIO_RANGE = (0.3, 3.0)                # granice przenoszonej korekty CAMS (jak r_s w PLAN 8.3)
 log = logging.getLogger(__name__)
 
+# Siatka pogody nad miastem. Open-Meteo (best_match) liczy Kraków modelem DMI HARMONIE-AROME (2 km), który
+# widzi miejską wyspę ciepła i dolinę Wisły: w upalną noc 3.07.2025 centrum +7 °C wobec obrzeży (pomiary
+# Bokwa i Limanówka 2014: średnio 2,4 K, max 9,9 K). Zapisujemy tylko różnice względem punktu miasta
+# (REF_POINT, ten sam model), więc wartości dla miasta — także w scenariuszach — zostają bez zmian.
+REF_POINT = (50.06, 19.94)
+GRID_LATS = tuple(round(float(x), 4) for x in np.linspace(49.97, 50.13, 6))     # co ~3,6 km
+GRID_LONS = tuple(round(float(x), 4) for x in np.linspace(19.79, 20.22, 9))     # co ~3,8 km
+GRID_POINTS = tuple((la, lo) for la in GRID_LATS for lo in GRID_LONS)
+WIND_RATIO_RANGE = (0.3, 3.0)
+FORECAST_URL = "https://api.open-meteo.com/v1/forecast"
+HISTORICAL_FORECAST_URL = "https://historical-forecast-api.open-meteo.com/v1/forecast"   # archiwum ERA5 jest za grube
+
 
 def _om(url, **params):
     r = httpx.get(url, params={"latitude": 50.06, "longitude": 19.94, "timezone": "Europe/Warsaw",
@@ -32,6 +44,7 @@ def fetch_hours(past_days=1, forecast_days=2, start=None, end=None) -> dict:
     w_url = "https://archive-api.open-meteo.com/v1/archive" if start else "https://api.open-meteo.com/v1/forecast"
     w = _om(w_url, hourly=W_VARS, **rng)
     a = _om("https://air-quality-api.open-meteo.com/v1/air-quality", hourly=A_VARS, **rng)
+    grid = fetch_grid_safe(rng, HISTORICAL_FORECAST_URL if start else FORECAST_URL)
     gios = fetch_gios(start, end)                        # {iso_hour: [StationReading-dict, ...]}
     hours = {}
     for i, t in enumerate(w["time"]):
@@ -42,9 +55,43 @@ def fetch_hours(past_days=1, forecast_days=2, start=None, end=None) -> dict:
         h = {k: w[k][i] for k in W_VARS.split(",")}
         h.update(uv_index=cams["uv"], pm10_cams=cams["pm10"], pm25_cams=cams["pm25"], no2_cams=cams["no2"], stations=st)
         h.update(_city_background(cams, st))
+        if t in grid:
+            h["grid"] = grid[t]
         hours[t] = h
     _fill_gaps(hours)
     return hours
+
+
+def fetch_grid(rng: dict, url: str) -> dict:
+    """{iso_hour: {"dt": [...], "wr": [...]}} dla GRID_POINTS: temperatura minus temperatura w REF_POINT
+    i stosunek wiatru do wiatru w REF_POINT — z tego samego modelu i jednego zapytania."""
+    pts = (REF_POINT, *GRID_POINTS)
+    r = httpx.get(url, params={"latitude": ",".join(str(p[0]) for p in pts), "longitude": ",".join(str(p[1]) for p in pts),
+                               "hourly": "temperature_2m,wind_speed_10m", "timezone": "Europe/Warsaw",
+                               "wind_speed_unit": "ms", **rng}, timeout=60)
+    r.raise_for_status()
+    data = r.json()
+    if not isinstance(data, list) or len(data) != len(pts):
+        raise ValueError(f"expected {len(pts)} locations, got {len(data) if isinstance(data, list) else 1}")
+    ref, cells = data[0]["hourly"], [d["hourly"] for d in data[1:]]
+    out = {}
+    for i, t in enumerate(ref["time"]):
+        t0, w0 = ref["temperature_2m"][i], ref["wind_speed_10m"][i]
+        if t0 is None or w0 is None:
+            continue
+        dt = [round(c["temperature_2m"][i] - t0, 2) if c["temperature_2m"][i] is not None else 0.0 for c in cells]
+        wr = [round(float(np.clip(c["wind_speed_10m"][i] / max(w0, 0.5), *WIND_RATIO_RANGE)), 3)
+              if c["wind_speed_10m"][i] is not None else 1.0 for c in cells]
+        out[t] = {"dt": dt, "wr": wr}
+    return out
+
+
+def fetch_grid_safe(rng: dict, url: str) -> dict:
+    try:
+        return fetch_grid(rng, url)
+    except (httpx.HTTPError, ValueError, KeyError, IndexError, TypeError):
+        log.warning("weather grid unavailable — the same weather for the whole city", exc_info=True)
+        return {}
 
 
 def _city_background(cams, stations):

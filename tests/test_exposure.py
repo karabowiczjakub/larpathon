@@ -154,3 +154,49 @@ def _timed(fn) -> float:
     t0 = time.perf_counter()
     fn()
     return time.perf_counter() - t0
+
+
+def _grid(dt_east: float, wind_east: float = 1.0):
+    """3x3 grid; only the eastern column (20.2 E, far from the city point 19.94 E) differs."""
+    from app.contracts import WeatherPoint
+    lats, lons = (50.0, 50.06, 50.12), (19.8, 20.0, 20.2)
+    return tuple(WeatherPoint(la, lo, dt_east if lo == 20.2 else 0.0, wind_east if lo == 20.2 else 1.0)
+                 for la in lats for lo in lons)
+
+
+def test_weather_grid_is_zero_at_the_city_point(env):
+    """The city temperature is forecast at REF_POINT, so the field is anchored there."""
+    from app.env.fetch import REF_POINT
+    g = Graph(["residential"], [(REF_POINT[1], REF_POINT[0])])
+    dt, wr = ex.local_weather(_grid(3.0, wind_east=0.5), g)
+    assert dt[0] == pytest.approx(0.0, abs=1e-6) and wr[0] == pytest.approx(1.0)
+
+
+def test_weather_grid_warms_and_calms_the_right_edges(env):
+    ctx = replace(env.get("heatwave_2025-07-03", None), weather_grid=_grid(3.0))
+    g = Graph(["residential"] * 3, [(19.8, 50.05), (20.1, 50.05), (20.2, 50.05)])
+    plain = _run(replace(ctx, weather_grid=()), g)
+    local = _run(ctx, g)
+    assert local.utci_c[0] == pytest.approx(plain.utci_c[0], abs=0.15)   # west: no difference
+    assert local.utci_c[2] > plain.utci_c[2] + 2                          # east: +3 °C air
+    assert plain.utci_c[0] < local.utci_c[1] < local.utci_c[2]            # halfway: interpolated
+    calm = _run(replace(ctx, weather_grid=_grid(0.0, wind_east=0.3)), g)
+    assert calm.utci_c[2] > plain.utci_c[2] and calm.utci_c[0] == plain.utci_c[0]   # calmer east: hotter there only
+
+
+def test_irregular_weather_grid_is_ignored(env):
+    ctx = replace(env.get("heatwave_2025-07-03", None), weather_grid=())
+    g = Graph(["residential"], [(19.9, 50.05)])
+    assert ex.local_weather(_grid(3.0)[:4], g) == (0.0, 1.0)
+    assert _run(replace(ctx, weather_grid=_grid(3.0)[:4]), g).utci_c[0] == _run(ctx, g).utci_c[0]
+
+
+def test_whole_city_with_weather_grid_under_100_ms(env):
+    e, rng = 150_000, np.random.default_rng(1)
+    g = Graph(rng.choice(["primary", "residential", "cycleway"], e),
+              np.column_stack([rng.uniform(19.80, 20.20, e), rng.uniform(49.98, 50.12, e)]))
+    ctx = replace(env.get("heatwave_2025-07-03", None), weather_grid=_grid(2.0, 0.8))  # 3x3 test grid
+    shade, tree = rng.random(e).astype(np.float32), rng.random(e).astype(np.float32)
+    ex.compute_edge_exposure(ctx, shade, g, tree, "standard")
+    best = min(_timed(lambda: ex.compute_edge_exposure(ctx, shade, g, tree, "standard")) for _ in range(5))
+    assert best < 0.1, f"{best * 1000:.0f} ms"

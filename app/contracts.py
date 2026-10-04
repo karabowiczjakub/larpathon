@@ -37,6 +37,16 @@ class StationReading:
 
 
 @dataclass(frozen=True)
+class WeatherPoint:
+    """Local weather against the city value at one point of a regular grid (weather model, ~2 km)."""
+
+    lat: float
+    lon: float
+    dt_c: float  # temperature here minus the city temperature [°C]
+    wind_ratio: float  # wind speed here / the city wind speed
+
+
+@dataclass(frozen=True)
 class EnvironmentalContext:
     timestamp: datetime  # tz-aware, Europe/Warsaw
     source: Literal["live", "scenario", "fallback", "mock"]
@@ -51,9 +61,10 @@ class EnvironmentalContext:
     no2: float
     stations: tuple[StationReading, ...] = ()
     data_age_s: float = 0.0
+    weather_grid: tuple[WeatherPoint, ...] = ()  # empty: the same weather in the whole city
 
     def summary(self) -> dict:
-        out = {f.name: getattr(self, f.name) for f in fields(self) if f.name != "stations"}
+        out = {f.name: getattr(self, f.name) for f in fields(self) if f.name not in {"stations", "weather_grid"}}
         out["timestamp"] = self.timestamp.isoformat()
         return out
 
