@@ -3,11 +3,13 @@ __pycache__/
 *.pyc
 .env
 
-# Offline artefacts (shared via drive, never committed)
+# Pipeline sources and scratch (shared via drive, never committed); data/processed/ is committed so the
+# app runs on real data from a fresh clone
 data/raw/
 data/interim/
-data/processed/
 data/shade_preview/
+# live-data cache, rewritten on every run
+data/processed/last_live.json
 
 .pytest_cache/
 .ruff_cache/
