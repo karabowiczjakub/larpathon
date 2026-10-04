@@ -162,13 +162,16 @@ function addWaypoint(latlng) {
     return;
   }
 
+  latlng = L.latLng(latlng);                     // the same object if it already is one (keeps its name)
   const label = letter(state.waypoints.length); // A, B, C…
   const m = L.marker(latlng, { draggable: true })
     .addTo(map)
     .bindTooltip(label, { permanent: true, direction: "top", offset: [0, -12], className: "wp-tooltip" });
 
   m.on("dragend", () => {
-    state.waypoints[state.markers.indexOf(m)] = m.getLatLng();
+    const moved = m.getLatLng();                 // a new point: name it again
+    state.waypoints[state.markers.indexOf(m)] = moved;
+    nameWaypoint(moved);
     state.fitNext = true;
     renderWaypoints();
     debounceFind();
@@ -179,6 +182,7 @@ function addWaypoint(latlng) {
   state.fitNext = true;
   renderWaypoints();
   updateButtons();
+  if (!latlng.name) nameWaypoint(latlng);
 
   if (state.waypoints.length >= 2) debounceFind();
   else refreshConditions();
@@ -204,6 +208,8 @@ function removeWaypoint(idx) {
 }
 
 function clearAll() {
+  $("placeInput").value = "";
+  closePlaces();
   state.markers.forEach((m) => map.removeLayer(m));
   state.waypoints = [];
   state.markers = [];
@@ -220,10 +226,14 @@ function renderWaypoints() {
 
   state.waypoints.forEach((wp, i) => {
     const li = document.createElement("li");
+    const coords = `${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}`;
+    const where = wp.name
+      ? `<span class="wp-name">${esc(wp.name)}</span>${wp.detail ? ` · ${esc(wp.detail)}` : ""}`
+      : coords;
     li.innerHTML = `
       <span class="wp-label">${letter(i)}</span>
-      <span class="wp-coords">${wp.mine ? myLocationLabel(wp) : ""}${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}</span>
-      <button class="wp-remove" title="Remove" aria-label="Remove point ${letter(i)}" data-idx="${i}">✕</button>
+      <span class="wp-coords" title="${coords}">${wp.mine ? myLocationLabel(wp) : ""}${where}</span>
+      <button class="wp-remove" title="Remove" aria-label="Remove point ${letter(i)}${wp.name ? ` (${esc(wp.name)})` : ""}" data-idx="${i}">✕</button>
     `;
     ol.appendChild(li);
   });
@@ -232,12 +242,13 @@ function renderWaypoints() {
     btn.addEventListener("click", () => removeWaypoint(+btn.dataset.idx));
   });
 
+  syncPlaceInput();
   const hint = $("waypointHint");
   if (state.waypoints.length === 0) {
-    hint.innerHTML = "📍 Click the map to add a start point.";
+    hint.innerHTML = "📍 Search a place or click the map to add a start point.";
     hint.style.display = "";
   } else if (state.waypoints.length === 1) {
-    hint.innerHTML = "🏁 Click the map to add a destination.";
+    hint.innerHTML = "🏁 Search or click the map to add a destination.";
     hint.style.display = "";
   } else if (state.waypoints.length < MAX_POINTS) {
     hint.innerHTML = "➕ Click again to add a via point; drag markers to adjust.";
@@ -250,6 +261,123 @@ function renderWaypoints() {
 function updateButtons() {
   $("findBtn").disabled = state.waypoints.length < 2;
   $("clearBtn").disabled = state.waypoints.length === 0;
+}
+
+// ── PLACE SEARCH (street, address or place → the next waypoint) ───
+// GET /api/places (Photon, OpenStreetMap). ARIA combobox: arrow keys move through the list, Enter picks
+// (the first hit if none is highlighted), Esc closes it. Clicked points get a street name from
+// /api/places/reverse; without internet they keep their coordinates.
+const PLACE_MIN_CHARS = 3;
+const placeSearch = { reqId: 0, timer: null, query: "", results: [], active: -1, pickFirst: false };
+
+function syncPlaceInput() {
+  const input = $("placeInput");
+  const n = state.waypoints.length;
+  input.disabled = n >= MAX_POINTS;
+  input.placeholder = n >= MAX_POINTS ? "All 5 points are set"
+    : ["🔍 Search start: street, address or place", "🔍 Search destination"][n] ?? "🔍 Add a stop on the way";
+}
+
+function onPlaceInput() {
+  clearTimeout(placeSearch.timer);
+  placeSearch.pickFirst = false;
+  const q = $("placeInput").value.trim();
+  if (q.length < PLACE_MIN_CHARS) { closePlaces(); return; }
+  placeSearch.timer = setTimeout(() => searchPlaces(q), 250);
+}
+
+async function searchPlaces(q) {
+  const id = ++placeSearch.reqId;
+  const c = map.getCenter();             // hits near what you are looking at come first
+  let data = { results: [], available: false };
+  try {
+    const res = await fetch(`${API}/places?${new URLSearchParams({ q, lat: c.lat.toFixed(4), lon: c.lng.toFixed(4) })}`);
+    if (res.ok) data = await res.json();
+  } catch { /* offline: say so below */ }
+  if (id !== placeSearch.reqId || $("placeInput").value.trim() !== q) return;   // you typed on meanwhile
+  showPlaces(data, q);
+}
+
+function showPlaces({ results, available }, q) {
+  Object.assign(placeSearch, { query: q, results });
+  $("placeList").innerHTML = results.map((r, i) => `
+    <li id="place-${i}" class="place-option" role="option" aria-selected="false" data-i="${i}">
+      <span class="place-name">${esc(r.name)}</span>
+      <span class="place-detail">${esc([r.kind, r.detail].filter(Boolean).join(" · "))}</span>
+    </li>`).join("");
+  setActivePlace(-1);
+  const msg = $("placeMsg");
+  msg.textContent = available ? `No places found in Kraków for “${q}”.`
+    : "Place search is unavailable right now (no internet?). Click the map instead.";
+  msg.hidden = results.length > 0;
+  $("placeList").hidden = !results.length;
+  $("placeInput").setAttribute("aria-expanded", String(results.length > 0));
+  if (placeSearch.pickFirst && results.length) choosePlace(0);
+  else announce(results.length ? `${results.length} places found. Use the arrow keys to choose.` : msg.textContent);
+}
+
+function setActivePlace(i) {
+  placeSearch.active = i;
+  document.querySelectorAll(".place-option").forEach((o, k) => o.setAttribute("aria-selected", String(k === i)));
+  const input = $("placeInput");
+  if (i < 0) { input.removeAttribute("aria-activedescendant"); return; }
+  input.setAttribute("aria-activedescendant", `place-${i}`);
+  $(`place-${i}`).scrollIntoView({ block: "nearest" });
+}
+
+function closePlaces() {
+  placeSearch.reqId++;                   // an answer still on its way must not reopen the list
+  placeSearch.results = [];
+  $("placeList").innerHTML = "";        // no stale options for aria-activedescendant
+  $("placeList").hidden = true;
+  $("placeMsg").hidden = true;
+  $("placeInput").setAttribute("aria-expanded", "false");
+  setActivePlace(-1);
+}
+
+function onPlaceKey(e) {
+  const q = $("placeInput").value.trim();
+  const n = placeSearch.query === q ? placeSearch.results.length : 0;   // the list is for what is typed
+  if ((e.key === "ArrowDown" || e.key === "ArrowUp") && n) {
+    e.preventDefault();
+    const step = e.key === "ArrowDown" ? 1 : -1;
+    const i = placeSearch.active;
+    setActivePlace(i < 0 ? (step > 0 ? 0 : n - 1) : (i + step + n) % n);
+  } else if (e.key === "Enter") {
+    e.preventDefault();
+    if (n) choosePlace(Math.max(placeSearch.active, 0));
+    else if (q.length >= PLACE_MIN_CHARS) {   // typed fast and pressed Enter: search now, take the first hit
+      clearTimeout(placeSearch.timer);
+      placeSearch.pickFirst = true;
+      searchPlaces(q);
+    }
+  } else if (e.key === "Escape" && !$("placeList").hidden) {
+    e.preventDefault();                  // the next Esc clears the field
+    closePlaces();
+  }
+}
+
+function choosePlace(i) {
+  const r = placeSearch.results[i];
+  if (!r || state.waypoints.length >= MAX_POINTS) return;
+  const latlng = Object.assign(L.latLng(r.lat, r.lon), { name: r.name, detail: r.detail });
+  $("placeInput").value = "";
+  closePlaces();
+  addWaypoint(latlng);
+  if (state.waypoints.length < 2) map.setView(latlng, Math.max(map.getZoom(), 15), { animate: !reducedMotion() });
+  announce(`Point ${letter(state.waypoints.length - 1)}: ${r.name}.`);
+}
+
+async function nameWaypoint(wp) {
+  try {
+    const res = await fetch(`${API}/places/reverse?lat=${wp.lat.toFixed(6)}&lon=${wp.lng.toFixed(6)}`);
+    const place = res.ok ? (await res.json()).place : null;
+    if (!place || wp.name || !state.waypoints.includes(wp)) return;   // removed or moved meanwhile
+    Object.assign(wp, { name: place.name, detail: place.detail });
+    renderWaypoints();
+  } catch {
+    /* offline: the coordinates stay */
+  }
 }
 
 // ── MY LOCATION (browser Geolocation API: https or localhost only) ──
@@ -351,6 +479,7 @@ function useLocation({ latitude: lat, longitude: lon, accuracy }) {
   if (state.waypoints.length) {           // replace start point A
     state.waypoints[0] = latlng;
     state.markers[0].setLatLng(latlng);
+    nameWaypoint(latlng);
     state.fitNext = true;
     renderWaypoints();
     if (state.waypoints.length >= 2) debounceFind();
@@ -1025,8 +1154,10 @@ function routeToGpx(route, request) {
     m.utci_avg_c != null && `feels like ${m.utci_avg_c.toFixed(1)} °C`, `shade ${m.shade_pct.toFixed(0)}%`,
     `high UV ${m.uv_high_min} min`, route.avoids?.length && `avoids: ${route.avoids.join("; ")}`,
   ].filter(Boolean).join(" · ");
+  const nameOf = (p) => state.waypoints.find((w) => +w.lat.toFixed(6) === p.lat && +w.lng.toFixed(6) === p.lon)?.name;
   const wpts = request.points
-    .map((p, i) => `  <wpt lat="${p.lat}" lon="${p.lon}"><name>${letter(i)}</name></wpt>`).join("\n");
+    .map((p, i) => `  <wpt lat="${p.lat}" lon="${p.lon}"><name>${esc(letter(i) + (nameOf(p) ? ` · ${nameOf(p)}` : ""))}</name></wpt>`)
+    .join("\n");
   const trkpts = route.geometry.coordinates
     .map(([lon, lat]) => `      <trkpt lat="${lat}" lon="${lon}"/>`).join("\n");
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -1150,7 +1281,8 @@ async function refreshConditions() {
     const res = await fetch(`${API}/conditions?${queryParams()}`);
     if (!res.ok || reqId !== state.reqId) return;
     const c = await res.json();
-    const hint = state.waypoints.length ? "🏁 Click the map to add a destination." : "📍 Click the map to add a start point.";
+    const hint = state.waypoints.length ? "🏁 Search or click the map to add a destination."
+      : "📍 Search a place or click the map to add a start point.";
     setStatus(`${conditionsLine(c, c.sun)} · ${hint}`);
   } catch {
     /* the scenario loader already reported an unreachable backend */
@@ -1168,8 +1300,8 @@ function setStatus(html, cls = "") {
 // ── DEMO ROUTE ────────────────────────────────────────────────────
 // Kazimierz → Rondo Mogilskie → Nowa Huta in the heatwave: ECO trades a few minutes for a lot of shade.
 const DEMO_WAYPOINTS = [
-  { lat: 50.0510, lng: 19.9450 }, // Kazimierz, plac Nowy
-  { lat: 50.0720, lng: 20.0370 }, // Nowa Huta, plac Centralny
+  { lat: 50.0510, lng: 19.9450, name: "Plac Nowy", detail: "Kazimierz" },
+  { lat: 50.0720, lng: 20.0370, name: "Plac Centralny", detail: "Nowa Huta" },
 ];
 
 function loadDemoRoute() {
@@ -1178,7 +1310,7 @@ function loadDemoRoute() {
   if (heat) $("scenario").value = heat.id;
   $("profile").value = "senior";
   syncSliderToScenario();
-  DEMO_WAYPOINTS.forEach((latlng) => addWaypoint(latlng));
+  DEMO_WAYPOINTS.forEach(({ lat, lng, name, detail }) => addWaypoint(Object.assign(L.latLng(lat, lng), { name, detail })));
 }
 
 // ── ACCESSIBILITY PANEL (colours, text size, contrast, motion) ───
@@ -1354,6 +1486,16 @@ map.on("moveend", () => $("shadeLayer").checked && debounceShade());
 $("tradeoffSlider").addEventListener("input", (e) => onSlider(+e.target.value));
 $("tradeoffSlider").addEventListener("keydown", onSliderKey);
 new ResizeObserver(() => drawTradeoffChart()).observe($("tradeoffChart"));
+
+$("placeInput").addEventListener("input", onPlaceInput);
+$("placeInput").addEventListener("focus", onPlaceInput);        // back in the field: show the hits again
+$("placeInput").addEventListener("keydown", onPlaceKey);
+$("placeInput").addEventListener("blur", closePlaces);
+$("placeList").addEventListener("mousedown", (e) => e.preventDefault());   // keep the focus in the field
+$("placeList").addEventListener("click", (e) => {
+  const option = e.target.closest(".place-option");
+  if (option) choosePlace(+option.dataset.i);
+});
 
 $("findBtn").addEventListener("click", findRoutes);
 $("clearBtn").addEventListener("click", clearAll);

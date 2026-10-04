@@ -5,8 +5,8 @@ Imports live inside create_app() so that `import app.contracts` (used by every r
 from __future__ import annotations
 
 
-def create_app(overrides: dict | None = None, *, modules=None):
-    """`modules` (app.providers.Modules) lets tests inject ready-made modules instead of building them."""
+def create_app(overrides: dict | None = None, *, modules=None, places=None):
+    """`modules` (app.providers.Modules) and `places` (app.places.PlaceSearch) let tests inject fakes."""
     import logging
 
     from flask import Flask
@@ -16,6 +16,7 @@ def create_app(overrides: dict | None = None, *, modules=None):
     from .engine import Engine
     from .errors import register_error_handlers
     from .json_provider import OrjsonProvider
+    from .places import PlaceSearch
     from .providers import build_modules
 
     app = Flask(__name__, static_folder="static", static_url_path="")
@@ -29,6 +30,7 @@ def create_app(overrides: dict | None = None, *, modules=None):
     if app.config["WARMUP"]:
         engine.warmup()
     app.extensions["engine"] = engine
+    app.extensions["places"] = places or PlaceSearch(app.config["PLACES_URL"])
 
     register_error_handlers(app)
     app.register_blueprint(api_bp, url_prefix="/api")

@@ -28,4 +28,5 @@ def from_env() -> dict:
         "ENV_FACTORY": os.getenv("ENV_FACTORY", "app.env.service:EnvironmentService"),
         "EXPOSURE_FN": os.getenv("EXPOSURE_FN", "app.env.exposure:compute_edge_exposure"),
         "DISCOMFORT_FN": os.getenv("DISCOMFORT_FN", "app.env.exposure:discomfort"),  # advanced options
+        "PLACES_URL": os.getenv("PLACES_URL", "https://photon.komoot.io"),  # place search (Photon API)
     }

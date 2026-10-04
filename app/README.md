@@ -85,6 +85,11 @@ travel costs. Without it, the backend orders the points by straight-line distanc
   `discomfort` (0..1) and `reason`. Over 5000 edges it keeps the longest ones and sets `truncated: true`.
 - A scenario is one recorded day: `depart_at` (and `at` in `/api/conditions`) keeps its clock time but
   is moved to the scenario's date, so the sun and shade always match the scenario's weather.
+- `GET /api/places?q=&lat=&lon=` (place search box) returns `{results: [{name, kind, detail, lat, lon}],
+  available}` for Kraków, nearest to `lat/lon` (the map centre) first; `GET /api/places/reverse?lat=&lon=`
+  returns `{place, available}` with the address of a clicked point. `app/places.py` adapts Photon (komoot,
+  OpenStreetMap, no key; `PLACES_URL`), caches answers for an hour and reports `available: false` instead
+  of failing when it is unreachable.
 - `POST /api/route/tradeoff` (same body as `/api/route`) feeds the "how much extra time is comfort worth?"
   slider: ECO routes for the profile's weights × 0.25…16, kept as a Pareto front of time vs `axis`
   (`discomfort` 0–10, or `pm25_dose` in µg for asthma and "air only"). Each slower option must gain at least

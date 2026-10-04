@@ -357,12 +357,52 @@ body[data-cvd="greyscale"] .card-metric-val.bad { text-decoration: underline; }
 
 .wp-coords {
   flex: 1;
+  min-width: 0;
   color: var(--color-muted);
   font-size: calc(11px * var(--text-scale));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.wp-name { color: var(--color-text); font-weight: 600; font-size: calc(12px * var(--text-scale)); }
+
+/* Place search: the list is part of the page flow, so the mobile sidebar never clips it */
+.place-search { margin-bottom: 8px; }
+#placeInput {
+  width: 100%;
+  height: calc(32px * var(--text-scale));
+  padding: 0 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  font-size: calc(12px * var(--text-scale));
+}
+#placeInput::placeholder { color: var(--color-muted); }
+#placeInput:disabled { opacity: .6; cursor: not-allowed; }
+.place-list {
+  list-style: none;
+  margin-top: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+.place-list[hidden], .place-msg[hidden] { display: none; }
+.place-option {
+  display: flex;
+  flex-direction: column;
+  padding: 6px 10px;
+  cursor: pointer;
+  font-size: calc(12px * var(--text-scale));
+  line-height: 1.35;
+}
+.place-option + .place-option { border-top: 1px solid var(--color-border); }
+.place-option:hover, .place-option[aria-selected="true"] { background: var(--color-bg); box-shadow: inset 3px 0 var(--color-primary); }
+.place-name { font-weight: 600; color: var(--color-text); }
+.place-detail { color: var(--color-muted); font-size: calc(11px * var(--text-scale)); }
+.place-msg { margin-top: 4px; font-size: calc(11px * var(--text-scale)); color: var(--color-muted); font-style: italic; }
 
 .wp-remove {
   min-width: 28px;

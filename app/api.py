@@ -5,13 +5,18 @@ from flask import Blueprint, current_app, jsonify, request
 
 from .engine import Engine
 from .errors import InvalidJSON
-from .schemas import ConditionsQuery, LayerQuery, RouteRequest
+from .places import PlaceSearch
+from .schemas import ConditionsQuery, LayerQuery, PlaceQuery, Point, RouteRequest
 
 bp = Blueprint("api", __name__)
 
 
 def _engine() -> Engine:
     return current_app.extensions["engine"]
+
+
+def _places() -> PlaceSearch:
+    return current_app.extensions["places"]
 
 
 def _json_body() -> dict:
@@ -48,6 +53,19 @@ def conditions():
 def shade_layer():
     q = LayerQuery.model_validate(request.args.to_dict())
     return jsonify(_engine().shade_layer(q))
+
+
+@bp.get("/places")
+def places():
+    q = PlaceQuery.model_validate(request.args.to_dict())
+    near = (q.lat, q.lon) if q.lat is not None and q.lon is not None else None
+    return jsonify(_places().search(q.q, near))
+
+
+@bp.get("/places/reverse")
+def place_at():
+    p = Point.model_validate(request.args.to_dict())
+    return jsonify(_places().reverse(p.lat, p.lon))
 
 
 @bp.get("/health")

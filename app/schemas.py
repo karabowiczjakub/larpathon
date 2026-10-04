@@ -85,3 +85,9 @@ class LayerQuery(ConditionsQuery):
     @classmethod
     def _known_profile(cls, v: str) -> str:
         return known_profile(v)
+
+
+class PlaceQuery(BaseModel):
+    q: str = Field(min_length=2, max_length=100)
+    lat: float | None = None  # map centre: hits near it come first (ignored outside the service area)
+    lon: float | None = None
