@@ -1,0 +1,15 @@
+{
+  "file": "presentation/BiKing_HackYeah.pptx",
+  "slides": 10,
+  "aspect_ratio": "16:9",
+  "text_boxes_checked": 188,
+  "layout_errors": [],
+  "missing_screenshots": [],
+  "embedded_screenshots": [
+    "main_ui.png",
+    "route_comparison.png",
+    "route_detail.png"
+  ],
+  "office_rendered": false,
+  "inspection_method": "Saved PPTX reopened; shape bounds and Arial-compatible text measurements checked; Pillow static layout previews generated."
+}
