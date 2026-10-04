@@ -1283,6 +1283,53 @@ function initAccessibility() {
   setMotion(motion ? motion === "reduce" : window.matchMedia("(prefers-reduced-motion: reduce)").matches, false);
 }
 
+// ── TUTORIAL ("? How to use") ─────────────────────────────────────
+// A native modal <dialog>: focus stays inside, Esc closes, focus returns to the button afterwards.
+const helpSteps = () => [...document.querySelectorAll(".help-step")];
+let helpStep = 0;
+
+function showHelpStep(i) {
+  const steps = helpSteps();
+  helpStep = Math.min(Math.max(i, 0), steps.length - 1);
+  steps.forEach((s, k) => { s.hidden = k !== helpStep; });
+  const last = helpStep === steps.length - 1;
+  // The heading is visible below; screen readers hear it with the step number
+  $("helpProgress").innerHTML = `Step ${helpStep + 1} of ${steps.length}<span class="sr-only">: ${esc(steps[helpStep].querySelector("h3").textContent)}</span>`;
+  $("helpBack").hidden = helpStep === 0;
+  $("helpNext").textContent = last ? "Done" : "Next →";
+  document.querySelectorAll(".help-dots span").forEach((d, k) => d.classList.toggle("on", k === helpStep));
+}
+
+function openHelp() {
+  // Samples in the current colours (colour-blind modes, dark theme)
+  const css = getComputedStyle(document.documentElement);
+  document.querySelectorAll(".help-line").forEach((l) => {
+    const base = css.getPropertyValue(l.dataset.route === "eco" ? "--color-cleanest" : "--color-fastest").trim();
+    l.style.borderTopColor = routeColor({ id: l.dataset.route, color: base });
+  });
+  document.querySelector(".help-scale-bar").style.background = `linear-gradient(to right, ${palette().scale.join(", ")})`;
+  showHelpStep(0);
+  $("helpDialog").showModal();
+}
+
+function initHelp() {
+  const dialog = $("helpDialog");
+  dialog.querySelector(".help-dots").innerHTML = helpSteps().map(() => "<span></span>").join("");
+  $("helpBtn").addEventListener("click", openHelp);
+  $("helpClose").addEventListener("click", () => dialog.close());
+  $("helpBack").addEventListener("click", () => showHelpStep(helpStep - 1));
+  $("helpNext").addEventListener("click", () => {
+    if (helpStep === helpSteps().length - 1) dialog.close();
+    else showHelpStep(helpStep + 1);
+  });
+  $("helpDemo").addEventListener("click", () => { dialog.close(); loadDemoRoute(); });
+  dialog.addEventListener("click", (e) => { if (e.target === dialog) dialog.close(); });   // the backdrop
+  dialog.addEventListener("keydown", (e) => {
+    if (e.key === "ArrowRight") showHelpStep(helpStep + 1);
+    if (e.key === "ArrowLeft") showHelpStep(helpStep - 1);
+  });
+}
+
 // ── INIT ──────────────────────────────────────────────────────────
 function onConditionsChange() {
   if (state.waypoints.length >= 2) debounceFind();
@@ -1316,6 +1363,7 @@ else $("locateBtn").hidden = true;       // no Geolocation API at all: nothing t
 
 initTheme();
 initAccessibility();
+initHelp();
 renderGlossary();
 if ("speechSynthesis" in window) {
   $("speakBtn").hidden = false;

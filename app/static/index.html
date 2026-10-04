@@ -39,6 +39,8 @@
       </label>
     </div>
     <div class="topbar-actions">
+      <button id="helpBtn" class="cvd-btn" type="button" aria-haspopup="dialog" aria-controls="helpDialog"
+              aria-label="How to use BiKing" title="How to use BiKing: a short tutorial"><span class="help-icon" aria-hidden="true">?</span><span class="btn-text"> How to use</span></button>
       <button id="themeBtn" class="cvd-btn" type="button" aria-pressed="false" aria-label="Dark mode"
               title="Switch to dark mode">🌙</button>
       <div class="cvd">
@@ -135,6 +137,91 @@
 
   <footer id="status"><span>📍 Click the map to add a start point.</span></footer>
   <div id="srLive" class="sr-only" aria-live="polite" aria-atomic="true"></div>
+
+  <dialog id="helpDialog" class="help-dialog" aria-labelledby="helpTitle">
+    <div class="help-inner">
+      <div class="help-head">
+        <p class="help-kicker"><span id="helpTitle">How to use BiKing</span> · <span id="helpProgress" aria-live="polite"></span></p>
+        <button id="helpClose" class="help-close" type="button" aria-label="Close the tutorial">✕</button>
+      </div>
+
+      <section class="help-step">
+        <h3>Welcome to BiKing 🚲</h3>
+        <p>BiKing plans bike rides across Kraków that are easier on your body: less heat, cleaner air and less
+          strong sun. For every ride you get two routes:</p>
+        <ul class="help-routes">
+          <li><span class="help-line" data-route="fastest"></span><span><b>Fastest</b>: the quickest way (dashed).</span></li>
+          <li><span class="help-line" data-route="eco"></span><span><b>More comfortable</b>: usually a few minutes
+            longer, with more shade and cleaner air (solid).</span></li>
+        </ul>
+      </section>
+
+      <section class="help-step" hidden>
+        <h3>Set your route</h3>
+        <ul>
+          <li><b>Click the map</b> to set the start <span class="help-pin">A</span>, then the destination
+            <span class="help-pin">B</span>. Click again to add up to 3 stops on the way.</li>
+          <li><b>Drag a marker</b> to move it; <span class="ui-chip">✕</span> in the Waypoints list removes it.</li>
+          <li><span class="ui-chip">📍 Start from my location</span> uses your phone's or laptop's position as A.</li>
+          <li>Just looking? <span class="ui-chip">▶ Load demo route</span> shows a ready example.</li>
+        </ul>
+      </section>
+
+      <section class="help-step" hidden>
+        <h3>Say when and who is riding</h3>
+        <ul>
+          <li><b>Scenario</b>: <i>Live now</i> uses today's weather and air quality; <i>Heatwave</i> and
+            <i>Smog</i> are recorded days to try the extremes.</li>
+          <li><b>Depart</b>: when you set off. Shade, heat and sun change during the day.</li>
+          <li><b>Profile</b>: <i>Asthma / Allergy</i> puts clean air first, <i>Senior / Child</i> feels the heat
+            sooner, <i>Athlete</i> rides faster and breathes harder.</li>
+          <li>Routes update by themselves. <b>Advanced options</b> let you choose what to avoid: heat, air
+            pollution or UV.</li>
+        </ul>
+      </section>
+
+      <section class="help-step" hidden>
+        <h3>Read the map</h3>
+        <ul>
+          <li>The selected route is coloured by discomfort:
+            <span class="help-scale"><span>comfortable</span><span class="help-scale-bar"></span><span>uncomfortable</span></span>
+            Point at a stretch to see why: heat, air or UV.</li>
+          <li><b>Click a route</b> or its card to switch between the two.</li>
+          <li><b>Show discomfort map</b> colours every street around you the same way (zoom in to street level).</li>
+        </ul>
+      </section>
+
+      <section class="help-step" hidden>
+        <h3>Compare and choose</h3>
+        <ul>
+          <li><b>More comfortable vs fastest</b> shows what the extra minutes buy: fine dust breathed in, shade,
+            felt temperature, heat stress and strong sun. <span class="help-good">Green</span> is better,
+            <span class="help-bad">red</span> is worse; point at a name for an explanation.</li>
+          <li><b>How much extra time is comfort worth?</b> Move the slider to trade minutes for comfort. It appears
+            when there is a real choice.</li>
+          <li><b>Health tips</b> and <span class="ui-chip">🔊 Read aloud</span> sum up the ride.</li>
+        </ul>
+      </section>
+
+      <section class="help-step" hidden>
+        <h3>Take it with you</h3>
+        <ul>
+          <li><span class="ui-chip">⬇ GPX</span> on a route card saves the route for Komoot, Garmin Connect, Strava
+            and other apps.</li>
+          <li><span class="ui-chip">♿ Accessibility</span>: colours for colour-blind users, bigger text, high
+            contrast and less motion. <span class="ui-chip">🌙</span> switches to dark mode.</li>
+          <li>You can open this guide again with <span class="ui-chip"><span class="help-icon">?</span></span> at the top.</li>
+        </ul>
+        <button id="helpDemo" class="btn-demo help-demo" type="button">▶ Try the demo route</button>
+      </section>
+
+      <div class="help-dots" aria-hidden="true"></div>
+      <div class="help-nav">
+        <button id="helpBack" class="btn-secondary" type="button">← Back</button>
+        <button id="helpNext" class="btn-primary" type="button" autofocus>Next →</button>
+      </div>
+    </div>
+  </dialog>
 
   <div id="loader" class="loader" hidden aria-live="polite">
     <div class="loader-card">
