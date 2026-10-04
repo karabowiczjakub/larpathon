@@ -14,6 +14,27 @@ make bench           # 50 random routes on the current modules: p50/p95 latency,
 
 Settings are environment variables, listed in `.env.example` (e.g. `MOCK_MODULES=shade make dev`).
 
+## Deploy (Docker + Cloudflare tunnel)
+
+The image (`Dockerfile`, runtime deps only: `requirements-app.txt`) holds the app and the data it reads
+from `data/processed/` and serves it with waitress in one process (~450 MB RAM, ready ~15 s after start).
+The public way in is a Cloudflare tunnel, so the server opens no ports and Cloudflare does HTTPS.
+
+1. Cloudflare Zero Trust → Networks → Tunnels → create a tunnel; copy the token from its install command.
+2. In the tunnel, add a public hostname (e.g. `biking.example.com`) with the service `http://app:8000`.
+3. On the server (Docker, ≥ 2 GB RAM, outbound internet for live data and place search):
+
+```bash
+git clone … && cd larpathon
+echo "TUNNEL_TOKEN=<token>" > .env
+docker compose --profile tunnel up -d --build
+docker compose ps                      # app "healthy", then the tunnel connects
+curl -s 127.0.0.1:8000/api/health      # all four modules "real"
+```
+
+Update: `git pull && docker compose --profile tunnel up -d --build`. Without `--profile tunnel` only the
+app starts, on `http://127.0.0.1:${PORT:-8000}`.
+
 ## Plugging in a role module
 
 The backend loads each module from the path below. If the module is missing or breaks the contract,

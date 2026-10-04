@@ -1,0 +1,29 @@
+# BiKing on a server, reached through a Cloudflare tunnel: no open ports, HTTPS by Cloudflare.
+#   docker compose up -d --build app          # the app alone, http://127.0.0.1:8000 on this machine
+#   docker compose --profile tunnel up -d     # plus the tunnel (TUNNEL_TOKEN in .env, see .env.example)
+# In the tunnel's "Public hostname" set the service to http://app:8000.
+services:
+  app:
+    build: .
+    image: biking:latest
+    restart: unless-stopped
+    init: true  # stops on SIGTERM instead of waiting to be killed
+    environment:
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+    ports:
+      - "127.0.0.1:${PORT:-8000}:8000"  # for checks on the server itself; the public way in is the tunnel
+    logging:
+      options: { max-size: "10m", max-file: "3" }
+
+  tunnel:
+    image: cloudflare/cloudflared:2026.9.3
+    profiles: [tunnel]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${TUNNEL_TOKEN:-}
+    depends_on:
+      app:
+        condition: service_healthy
+    logging:
+      options: { max-size: "10m", max-file: "3" }

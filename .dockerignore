@@ -1,0 +1,15 @@
+# Allow-list: the image gets the app, the scenarios and the data the app reads, nothing else
+*
+!requirements-app.txt
+!app/
+!scenarios/
+!data/processed/
+
+**/__pycache__/
+**/*.pyc
+# live-data cache, written at run time
+data/processed/last_live.json
+# pipeline inputs the app never reads (~90 MB)
+data/processed/buildings.parquet
+data/processed/trees.parquet
+data/processed/*.tif
