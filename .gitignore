@@ -13,3 +13,7 @@ data/processed/last_live.json
 
 .pytest_cache/
 .ruff_cache/
+
+# Windows download metadata
+*:Zone.Identifier
+*:Zone.Identifier:$DATA
