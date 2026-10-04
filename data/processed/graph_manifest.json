@@ -1,0 +1,10 @@
+{
+  "format_version": 1,
+  "nodes": 76133,
+  "edges": 174039,
+  "sha256": {
+    "graph.npz": "32a45c9f18e3c392d292bfe0326c544ae8966b6f917ca8b7a01d8eb67bcc1b1f",
+    "edge_coords.npz": "e40050bf272971f3d47969cb02ea065fee9b4b7511350594320c5a76524c2834",
+    "edges.parquet": "a468c2a63f3321164852fd5336b2806f720feea771234773db5eae087649dff1"
+  }
+}

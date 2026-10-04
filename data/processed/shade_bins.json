@@ -1,0 +1,96 @@
+{
+  "az": [
+    0.0,
+    22.5,
+    45.0,
+    67.5,
+    90.0,
+    112.5,
+    135.0,
+    157.5,
+    180.0,
+    202.5,
+    225.0,
+    247.5,
+    270.0,
+    292.5,
+    315.0,
+    337.5
+  ],
+  "el": [
+    5,
+    10,
+    15,
+    20,
+    30,
+    40,
+    50,
+    65
+  ],
+  "edges_sha256": "a468c2a63f3321164852fd5336b2806f720feea771234773db5eae087649dff1",
+  "crs": "EPSG:2180",
+  "step_m": 2.0,
+  "max_distance_m": 120.0,
+  "eye_height_m": 1.5,
+  "metadata": {
+    "version": 1,
+    "crs": "EPSG:2180",
+    "bounds": [
+      556727.5913154434,
+      233804.57628756855,
+      587229.5320202769,
+      251499.8507931009
+    ],
+    "sample_step_m": 15,
+    "az": [
+      0.0,
+      22.5,
+      45.0,
+      67.5,
+      90.0,
+      112.5,
+      135.0,
+      157.5,
+      180.0,
+      202.5,
+      225.0,
+      247.5,
+      270.0,
+      292.5,
+      315.0,
+      337.5
+    ],
+    "el": [
+      5,
+      10,
+      15,
+      20,
+      30,
+      40,
+      50,
+      65
+    ],
+    "eye_m": 1.5,
+    "ray_step_m": 2.0,
+    "max_distance_m": 120.0,
+    "raster_resolution_m": 2,
+    "preview_grid": false,
+    "build_key": "5257a97a0690f1852011a443d15b01c72abd5faf2a1527a4adb92b2328588e3e",
+    "building_count": 198499,
+    "tree_polygon_count": 57489,
+    "height_sources": {
+      "gugik_measuredHeight": 91257,
+      "default_other": 85132,
+      "osm_levels_estimate": 15608,
+      "default_house": 5703,
+      "default_apartments": 397,
+      "osm_height": 295,
+      "default_commercial": 107
+    },
+    "tree_sources": {
+      "msip_2015_assumed_12m": 57489
+    },
+    "missing_buildings": false,
+    "missing_trees": false
+  }
+}
