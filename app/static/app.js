@@ -12,7 +12,7 @@ const API = "/api";
 const MAX_POINTS = 5;            // API limit: start, up to 3 via points, end
 const SHADE_MIN_ZOOM = 14;       // the discomfort map is street-level; below this the bbox is too big
 
-const ROUTE_STYLE = {            // fastest under, healthier on top; width also tells them apart
+const ROUTE_STYLE = {            // fastest under, more comfortable on top; width also tells them apart
   fastest: { weight: 4, dashArray: "8, 8", rank: 0 },
   eco:     { weight: 7, dashArray: null,   rank: 1 },
 };
@@ -54,6 +54,7 @@ const state = {
   shadeLayer: null,
   debounceTimer: null,
   shadeTimer: null,
+  tradeoff: null,   // /api/route/tradeoff response + slider position, for lastResult
   reqId: 0,         // Prevent async race conditions
   shadeReqId: 0,
 };
@@ -66,7 +67,7 @@ const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&
 
 // ── COLOUR-VISION MODES ───────────────────────────────────────────
 // Discomfort scale (comfortable -> uncomfortable) and route colours per mode. The colour-blind scales
-// avoid red vs green (or blue vs yellow) and keep the healthier route in the "comfortable" colour.
+// avoid red vs green (or blue vs yellow) and keep the more comfortable route in the "comfortable" colour.
 // `dark` overrides keep the lines visible on the dark map (dark greys and black would vanish there).
 const PALETTES = {
   default:    { label: "Default colours", hint: "",
@@ -215,12 +216,13 @@ function clearAll() {
 function renderWaypoints() {
   const ol = $("waypoints");
   ol.innerHTML = "";
+  syncAccuracyCircle();
 
   state.waypoints.forEach((wp, i) => {
     const li = document.createElement("li");
     li.innerHTML = `
       <span class="wp-label">${letter(i)}</span>
-      <span class="wp-coords">${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}</span>
+      <span class="wp-coords">${wp.mine ? myLocationLabel(wp) : ""}${wp.lat.toFixed(4)}, ${wp.lng.toFixed(4)}</span>
       <button class="wp-remove" title="Remove" aria-label="Remove point ${letter(i)}" data-idx="${i}">✕</button>
     `;
     ol.appendChild(li);
@@ -248,6 +250,118 @@ function renderWaypoints() {
 function updateButtons() {
   $("findBtn").disabled = state.waypoints.length < 2;
   $("clearBtn").disabled = state.waypoints.length === 0;
+}
+
+// ── MY LOCATION (browser Geolocation API: https or localhost only) ──
+const SERVICE_AREA = { lat: [49.95, 50.15], lon: [19.75, 20.25] };   // the box the API accepts
+const GOOD_ACCURACY_M = 50;      // a GPS fix: stop refining
+const ROUGH_ACCURACY_M = 300;    // network/IP location (laptops): say it is approximate
+const REFINE_MS = 8000;          // phones: the first fix is often coarse, GPS sharpens within seconds
+const LOCATION_ERRORS = {
+  1: "Location permission was denied. Allow it in the browser to start from where you are.",
+  2: "Your position is not available right now.",
+  3: "Finding your position took too long. Please try again.",
+};
+
+function locateMe() {
+  const btn = $("locateBtn");
+  const fail = (msg) => { setStatus(`⚠ ${msg}`, "error"); announce(msg); };
+  if (!window.isSecureContext) {
+    fail("Location only works on https or on this computer (localhost), not over plain http from another device.");
+    return;
+  }
+  const label = btn.textContent;
+  btn.disabled = true;
+  btn.setAttribute("aria-busy", "true");
+  btn.textContent = "📍 Locating…";
+  const started = Date.now();
+  let best = null;
+  let watchId = null;
+  let finished = false;
+  const finish = () => {
+    if (finished) return;
+    finished = true;
+    navigator.geolocation.clearWatch(watchId);
+    btn.disabled = false;
+    btn.removeAttribute("aria-busy");
+    btn.textContent = label;
+    if (best) reportLocation(best);
+  };
+  // A first fix sets A at once; better ones (smaller accuracy circle) move it until REFINE_MS has passed
+  watchId = navigator.geolocation.watchPosition(
+    (pos) => {
+      if (best && pos.coords.accuracy >= best.accuracy) return;
+      best = pos.coords;
+      if (!useLocation(best)) { best = null; finish(); return; }   // outside Kraków
+      if (best.accuracy <= GOOD_ACCURACY_M || Date.now() - started >= REFINE_MS) finish();
+    },
+    (err) => {
+      if (best) { finish(); return; }
+      finish();
+      fail(LOCATION_ERRORS[err.code] ?? "Could not get your location.");
+    },
+    { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 },   // always a fresh fix: the rider may have moved
+  );
+  setTimeout(() => { if (best) finish(); }, REFINE_MS);
+}
+
+function myLocationLabel(wp) {
+  const rough = wp.accuracy > ROUGH_ACCURACY_M;
+  return `📍 My location${rough ? ` (approx. ±${formatDistance(wp.accuracy)})` : ""} · `;
+}
+
+const formatDistance = (m) => (m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`);
+
+function syncAccuracyCircle() {
+  // The circle shows where you may really be; it goes away once A is moved or removed
+  const a = state.waypoints[0];
+  if (!a?.mine) {
+    if (state.accuracyCircle) map.removeLayer(state.accuracyCircle);
+    state.accuracyCircle = null;
+    return;
+  }
+  if (!state.accuracyCircle) {
+    state.accuracyCircle = L.circle(a, { radius: a.accuracy, color: "#7c3aed", weight: 1, fillOpacity: 0.08,
+                                         interactive: false }).addTo(map);
+  }
+  state.accuracyCircle.setLatLng(a).setRadius(a.accuracy);
+}
+
+function reportLocation({ accuracy }) {
+  const msg = accuracy > ROUGH_ACCURACY_M
+    ? `Start point A is your approximate location (±${formatDistance(accuracy)}). This browser has no GPS fix, `
+      + "which is usual on a laptop: drag point A to where you are, or click the map."
+    : `Start point A is your location (±${formatDistance(accuracy)}).`;
+  setStatus(`📍 ${msg}`);
+  announce(msg);
+}
+
+function useLocation({ latitude: lat, longitude: lon, accuracy }) {
+  const inside = lat >= SERVICE_AREA.lat[0] && lat <= SERVICE_AREA.lat[1]
+    && lon >= SERVICE_AREA.lon[0] && lon <= SERVICE_AREA.lon[1];
+  if (!inside) {
+    const msg = "Your location is outside Kraków. BiKing plans routes inside the city.";
+    setStatus(`⚠ ${msg}`, "error");
+    announce(msg);
+    return false;
+  }
+  const latlng = L.latLng(lat, lon);
+  latlng.mine = true;                     // shown as "My location" until the marker is dragged
+  latlng.accuracy = accuracy;
+  if (state.waypoints.length) {           // replace start point A
+    state.waypoints[0] = latlng;
+    state.markers[0].setLatLng(latlng);
+    state.fitNext = true;
+    renderWaypoints();
+    if (state.waypoints.length >= 2) debounceFind();
+  } else {
+    addWaypoint(latlng);
+  }
+  if (state.waypoints.length < 2) {      // no route yet: show the whole area where you may be
+    if (accuracy > ROUGH_ACCURACY_M) map.fitBounds(state.accuracyCircle.getBounds(), { animate: !reducedMotion() });
+    else map.setView(latlng, Math.max(map.getZoom(), 15), { animate: !reducedMotion() });
+  }
+  return true;
 }
 
 // ── SCENARIOS & DEPART SLIDER ─────────────────────────────────────
@@ -316,15 +430,15 @@ function debounceFind() {
   state.debounceTimer = setTimeout(findRoutes, 300);
 }
 
-// ── ADVANCED OPTIONS: which factors the healthier route avoids ───
+// ── ADVANCED OPTIONS: which factors the more comfortable route avoids
 const FACTOR_LABELS = { heat: "heat", air: "air", uv: "UV" };
 const factorBoxes = () => [...document.querySelectorAll('input[name="factor"]')];
 const selectedFactors = () => factorBoxes().filter((b) => b.checked).map((b) => b.value);
 
 function onFactorChange(e) {
-  if (!selectedFactors().length) {        // the healthier route needs at least one thing to avoid
+  if (!selectedFactors().length) {        // the more comfortable route needs something to avoid
     e.target.checked = true;
-    setStatus("At least one factor must stay on — otherwise the healthier route is just the fastest one.");
+    setStatus("At least one factor must stay on — otherwise the more comfortable route is just the fastest one.");
     return;
   }
   const chosen = selectedFactors();
@@ -349,7 +463,7 @@ function requestBody() {
 // ── FIND ROUTES ───────────────────────────────────────────────────
 async function findRoutes() {
   if (state.waypoints.length < 2) return;
-  startLoading("Finding healthier routes…");
+  startLoading("Finding more comfortable routes…");
   try {
     await computeRoutes();
   } finally {
@@ -384,7 +498,10 @@ async function computeRoutes() {
 
   state.lastResult = data;
   state.lastRequest = body;
+  state.tradeoff = null;
   if (window.speechSynthesis?.speaking) speechSynthesis.cancel();   // never read out an old route
+  renderTradeoff();
+  loadTradeoff(body, currentReqId);
   drawRoutes(data.routes);
   renderComparison(data);
   renderHealthTips(data);
@@ -460,6 +577,8 @@ function clearRoutes() {
   Object.values(state.routeLayers).forEach((l) => map.removeLayer(l));
   state.routeLayers = {};
   state.lastResult = null;
+  state.tradeoff = null;
+  renderTradeoff();
   $("cards").innerHTML = "";
   $("cardsSection").style.display = "none";
   $("comparisonSection").style.display = "none";
@@ -479,6 +598,15 @@ const METRIC_INFO = {
 const metricLabel = (key) => `<span class="card-metric-label" title="${METRIC_INFO[key][1]}">${METRIC_INFO[key][0]}</span>`;
 const signed = (v, digits) => `${v >= 0 ? "+" : ""}${v.toFixed(digits)}`;
 const better = (delta, lowerIsBetter = true) => (delta === 0 ? null : (delta < 0) === lowerIsBetter);
+// Felt temperature: cooler is better in the heat, warmer in the cold, and in between it is just a fact
+const HOT_FEELS_C = 26;
+const COLD_FEELS_C = 9;
+function feelsBetter(delta, feels) {
+  if (feels == null || !delta) return null;
+  if (feels >= HOT_FEELS_C) return delta < 0;
+  if (feels < COLD_FEELS_C) return delta > 0;
+  return null;
+}
 
 // ── HEALTH TIPS, READ ALOUD, GLOSSARY (plain language) ────────────
 // Air categories: the EEA European Air Quality Index (2024 hourly bands, as in the backend). Advice
@@ -533,11 +661,18 @@ function renderHealthTips(data) {
     <small>General guidance based on EEA air-quality and WHO UV advice, not medical advice.</small>`;
 }
 
+function noDetourText() {
+  return state.tradeoff
+    ? "No extra time: both routes are the fastest one. Move the slider to trade minutes for comfort."
+    : "The fastest route is already the most comfortable right now.";
+}
+
 function summarySentences(data) {
   const c = data.comparison;
-  if (c.same_route) return ["The fastest route is already the healthiest right now."];
+  if (c.same_route) return [noDetourText()];
   const n = (v, digits = 1) => Math.abs(v).toFixed(digits);
-  const out = [`The healthier route takes ${n(c.time_delta_min)} minutes longer.`];
+  const out = c.equivalent ? ["Both routes are about equally comfortable right now, so the faster one is fine."] : [];
+  out.push(`The more comfortable route takes ${n(c.time_delta_min)} minutes longer.`);
   if (c.pm25_dose_delta_pct) out.push(`You breathe in ${n(c.pm25_dose_delta_pct, 0)} percent ${c.pm25_dose_delta_pct < 0 ? "less" : "more"} fine dust.`);
   if (c.air_poor_delta_min) out.push(`${n(c.air_poor_delta_min)} minutes ${c.air_poor_delta_min < 0 ? "less" : "more"} in poor air.`);
   if (c.shade_delta_pp) out.push(`The shaded part of the ride is ${n(c.shade_delta_pp, 0)} percentage points ${c.shade_delta_pp > 0 ? "larger" : "smaller"}.`);
@@ -575,12 +710,13 @@ function renderComparison(data) {
   const orderHtml = (reordered
     ? `<p class="comparison-note">Visiting order: ${order.map(letter).join(" → ")}</p>`
     : "") + (data.factors && data.factors.length < Object.keys(FACTOR_LABELS).length
-    ? `<p class="comparison-note">Healthier route avoids ${data.factors.map((f) => FACTOR_LABELS[f]).join(" + ")} only (advanced options).</p>`
+    ? `<p class="comparison-note">More comfortable route avoids ${data.factors.map((f) => FACTOR_LABELS[f]).join(" + ")} only (advanced options).</p>`
     : "");
 
   if (c.same_route) {
-    el.innerHTML = `<p class="comparison-same">✓ The fastest route is already the healthiest right now.</p>${orderHtml}`;
+    el.innerHTML = `<p class="comparison-same">✓ ${noDetourText()}</p>${orderHtml}`;
   } else {
+    const fastestFeels = data.routes.find((r) => r.id === "fastest")?.metrics.utci_avg_c;
     const row = (label, value, good) =>
       `${label}<span class="card-metric-val ${good == null ? "" : good ? "good" : "bad"}">${value}</span>`;
     el.innerHTML = `
@@ -588,13 +724,222 @@ function renderComparison(data) {
         ${row('<span class="card-metric-label">Extra time</span>', `+${c.time_delta_min.toFixed(1)} min (${formatPct(c.time_delta_pct)})`, null)}
         ${row(metricLabel("dose"), formatPct(c.pm25_dose_delta_pct), better(c.pm25_dose_delta_pct))}
         ${row(metricLabel("poorAir"), `${signed(c.air_poor_delta_min, 1)} min`, better(c.air_poor_delta_min))}
-        ${row(metricLabel("feels"), `${signed(c.utci_delta_c, 1)} °C`, better(c.utci_delta_c))}
+        ${row(metricLabel("feels"), `${signed(c.utci_delta_c, 1)} °C`, feelsBetter(c.utci_delta_c, fastestFeels))}
         ${row(metricLabel("heat"), `${signed(c.heat_stress_delta_min, 1)} min`, better(c.heat_stress_delta_min))}
         ${row(metricLabel("shade"), `${signed(c.shade_delta_pp, 0)} pp`, better(c.shade_delta_pp, false))}
         ${row(metricLabel("uv"), `${signed(c.uv_high_delta_min, 1)} min`, better(c.uv_high_delta_min))}
       </div>${orderHtml}`;
+    if (c.equivalent) {
+      el.insertAdjacentHTML("afterbegin",
+        '<p class="comparison-same">≈ Both routes are about equally comfortable right now: the faster one is fine.</p>');
+    }
   }
   $("comparisonSection").style.display = "";
+}
+
+// ── TRADE-OFF SLIDER ("how much extra time is comfort worth?") ────
+// /api/route/tradeoff: more comfortable routes for a range of comfort weights, each slower one more
+// comfortable (Pareto front). The slider is in extra minutes, under the chart's time axis: it picks the
+// most comfortable route within that time (0 = fastest) and swaps the "More comfortable" route on the
+// map, in the cards and in the comparison.
+const AXIS_INFO = {
+  discomfort: { name: "Discomfort", unit: "/10", title: "Discomfort on the ride, 0–10 · lower is better" },
+  pm25_dose:  { name: "PM2.5 inhaled", unit: " µg", title: "PM2.5 inhaled on the ride, µg · lower is better" },
+};
+const SVG_NS = "http://www.w3.org/2000/svg";
+
+async function loadTradeoff(body, reqId) {
+  let data;
+  try {
+    const res = await fetch(`${API}/route/tradeoff`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return;
+    data = await res.json();
+  } catch {
+    return;                                  // the slider is optional: the routes are already shown
+  }
+  const result = state.lastResult;
+  if (reqId !== state.reqId || !result) return;
+  const onMap = data.default_index;
+  if (!data.options.length || (data.options.length === 1 && onMap != null)) return;   // nothing to choose
+
+  const shown = { route: result.routes.find((r) => r.id === "eco"), comparison: result.comparison };
+  const fastest = result.routes.find((r) => r.id === "fastest");
+  const noDetour = onMap == null ? shown : {
+    route: { ...fastest, id: shown.route.id, label: shown.route.label, color: shown.route.color, avoids: [] },
+    comparison: { ...Object.fromEntries(Object.keys(shown.comparison).map((k) => [k, 0])), same_route: true, equivalent: false },
+  };
+  state.tradeoff = { ...data, positions: [noDetour, ...data.options], pos: onMap == null ? 0 : onMap + 1 };
+  renderTradeoff();
+  if (onMap == null) renderComparison(result);   // "fastest is the most comfortable" is no longer true
+}
+
+function tradeoffPoints() {
+  const t = state.tradeoff;
+  return [{ extra: 0, value: t.fastest.value, metrics: t.fastest, comparison: null },
+    ...t.options.map((o) => ({ extra: o.comparison.time_delta_min, value: o.value, metrics: o.route.metrics, comparison: o.comparison }))];
+}
+
+function tradeoffText(p) {
+  const axis = AXIS_INFO[state.tradeoff.axis];
+  const value = `${axis.name} ${p.value.toFixed(1)}${axis.unit}`;
+  if (!p.comparison) return `No extra time (fastest route) · ${value}`;
+  const c = p.comparison;
+  const extra = state.tradeoff.axis === "pm25_dose" ? `${formatPct(c.pm25_dose_delta_pct)} PM2.5` : `shade ${p.metrics.shade_pct.toFixed(0)}%`;
+  return `+${c.time_delta_min.toFixed(1)} min (${formatPct(c.time_delta_pct)}) · ${value} · ${extra}`;
+}
+
+function renderTradeoff() {
+  const t = state.tradeoff;
+  const box = $("tradeoff");
+  box.hidden = !t;
+  if (!t) return;
+  const points = tradeoffPoints();
+  const slider = $("tradeoffSlider");
+  slider.max = String(tradeoffMaxExtra(points));
+  slider.value = String(points[t.pos].extra);
+  slider.setAttribute("aria-valuetext", tradeoffText(points[t.pos]));
+  $("tradeoffOut").textContent = tradeoffText(points[t.pos]);
+  $("tradeoffAxis").textContent = AXIS_INFO[t.axis].title;
+
+  const axis = AXIS_INFO[t.axis];
+  $("tradeoffTable").innerHTML = `<thead><tr><th scope="col">Extra time</th><th scope="col">${axis.name}</th>
+      <th scope="col">Shade</th><th scope="col">Feels like</th></tr></thead><tbody>${points.map((p, i) => `
+    <tr${i === t.pos ? ' aria-current="true"' : ""}>
+      <td>${p.comparison ? `+${p.comparison.time_delta_min.toFixed(1)} min` : "Fastest"}</td>
+      <td>${p.value.toFixed(1)}${axis.unit}</td><td>${p.metrics.shade_pct.toFixed(0)}%</td>
+      <td>${p.metrics.utci_avg_c == null ? "—" : `${p.metrics.utci_avg_c.toFixed(1)} °C`}</td>
+    </tr>`).join("")}</tbody>`;
+  drawTradeoffChart();
+}
+
+const tradeoffMaxExtra = (points) => Math.max(...points.map((p) => p.extra), 1);
+
+// Most comfortable route that takes at most `minutes` extra (points are sorted by time)
+function onSlider(minutes) {
+  const points = tradeoffPoints();
+  selectTradeoff(points.findLastIndex((p) => p.extra <= minutes + 1e-9));
+  $("tradeoffSlider").value = String(points[state.tradeoff.pos].extra);   // snap to the chosen route
+}
+
+// Arrow keys step from route to route; a 0.1-minute step could never leave the current one
+function onSliderKey(e) {
+  const step = { ArrowRight: 1, ArrowUp: 1, PageUp: 1, ArrowLeft: -1, ArrowDown: -1, PageDown: -1 }[e.key];
+  const t = state.tradeoff;
+  if (!step || !t) return;
+  e.preventDefault();
+  selectTradeoff(Math.min(Math.max(t.pos + step, 0), t.positions.length - 1));
+}
+
+function niceStep(span, count) {
+  const raw = span / count;
+  const pow = 10 ** Math.floor(Math.log10(raw));
+  return pow * ([1, 2, 2.5, 5, 10].find((m) => m * pow >= raw) ?? 10);
+}
+
+function drawTradeoffChart() {
+  const t = state.tradeoff;
+  const svg = $("tradeoffChart");
+  const width = svg.clientWidth;
+  if (!t || !width) return;
+  const height = svg.clientHeight;
+  const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue("--text-scale")) || 1;
+  const m = { left: 30 * scale, right: 10, top: 20 * scale, bottom: 18 * scale };
+  const points = tradeoffPoints();
+
+  // Line and dot chart: a non-zero baseline is fine, but never blow a tiny gain up to the full height
+  const values = points.map((p) => p.value);
+  const minSpan = t.axis === "discomfort" ? 1 : 0.15 * Math.max(...values);
+  const mid = (Math.max(...values) + Math.min(...values)) / 2;
+  const half = Math.max(Math.max(...values) - Math.min(...values), minSpan) / 2 * 1.15;
+  const [y0, y1] = [mid - half, mid + half];
+  const xMax = tradeoffMaxExtra(points);
+  const x = (v) => m.left + (v / xMax) * (width - m.left - m.right);
+  // Line the slider's thumb (16 px) up with the time axis, so it sits under the chosen point
+  const slider = $("tradeoffSlider");
+  slider.style.marginLeft = `${m.left - 8}px`;
+  slider.style.width = `${width - m.left - m.right + 16}px`;
+  const y = (v) => m.top + (1 - (v - y0) / (y1 - y0)) * (height - m.top - m.bottom);
+
+  const el = (tag, attrs, text) => {
+    const node = document.createElementNS(SVG_NS, tag);
+    for (const [k, v] of Object.entries(attrs)) node.setAttribute(k, v);
+    if (text != null) node.textContent = text;
+    return node;
+  };
+  svg.replaceChildren();
+  $("tradeoffTip").hidden = true;      // its point may be gone after a redraw
+  svg.setAttribute("aria-label", `Chart of extra minutes against ${AXIS_INFO[t.axis].name.toLowerCase()} for ${points.length} routes; the slider below selects one.`);
+
+  const yStep = niceStep(y1 - y0, 3);
+  for (let v = Math.ceil(y0 / yStep) * yStep; v <= y1; v += yStep) {
+    svg.append(el("line", { class: "grid", x1: m.left, x2: width - m.right, y1: y(v), y2: y(v) }));
+    svg.append(el("text", { x: m.left - 4, y: y(v) + 3, "text-anchor": "end" }, v.toFixed(yStep < 1 ? 1 : 0)));
+  }
+  const xStep = niceStep(xMax, 3);
+  for (let v = 0; v <= xMax + 1e-9; v += xStep) {
+    const label = v === 0 ? "Fastest" : `+${Number(v.toFixed(1))} min`;
+    const anchor = v === 0 ? "start" : x(v) > width - 24 ? "end" : "middle";
+    svg.append(el("text", { x: x(v), y: height - 4, "text-anchor": anchor }, label));
+  }
+
+  const eco = routeColor(t.options[0].route);
+  const fast = routeColor(state.lastResult.routes.find((r) => r.id === "fastest"));
+  svg.append(el("polyline", {
+    points: points.map((p) => `${x(p.extra)},${y(p.value)}`).join(" "),
+    fill: "none", stroke: eco, "stroke-width": 2, "stroke-linejoin": "round",
+  }));
+  points.forEach((p, i) => {
+    const selected = i === t.pos;
+    svg.append(el("circle", {
+      cx: x(p.extra), cy: y(p.value), r: selected ? 6 : 4,
+      fill: i === 0 ? fast : eco, stroke: "var(--color-surface)", "stroke-width": 2,
+    }));
+  });
+
+  // Only the selected point gets a label; the rest show theirs on hover
+  const sel = points[t.pos];
+  const sx = x(sel.extra);
+  const anchor = sx > width * 0.65 ? "end" : sx < width * 0.3 ? "start" : "middle";
+  const labelY = y(sel.value) - 10 < 10 ? y(sel.value) + 18 : y(sel.value) - 10;
+  const selText = `${sel.comparison ? `+${sel.comparison.time_delta_min.toFixed(1)} min` : "Fastest"} · ${sel.value.toFixed(1)}${AXIS_INFO[t.axis].unit}`;
+  svg.append(el("text", { class: "selected-label", x: sx, y: labelY, "text-anchor": anchor }, selText));
+
+  const tip = $("tradeoffTip");
+  points.forEach((p, i) => {
+    const hit = el("circle", { class: "hit", cx: x(p.extra), cy: y(p.value), r: 14 });
+    hit.addEventListener("pointerenter", () => {
+      tip.textContent = tradeoffText(p);
+      tip.hidden = false;
+      const box = $("tradeoff");
+      const at = svg.getBoundingClientRect();
+      const left = at.left - box.getBoundingClientRect().left - box.clientLeft;
+      const top = at.top - box.getBoundingClientRect().top - box.clientTop;
+      tip.style.left = `${Math.min(Math.max(left + x(p.extra) - tip.offsetWidth / 2, 0), left + width - tip.offsetWidth)}px`;
+      tip.style.top = `${top + y(p.value) - tip.offsetHeight - 12}px`;
+    });
+    hit.addEventListener("pointerleave", () => { tip.hidden = true; });
+    hit.addEventListener("click", () => selectTradeoff(i));
+    svg.append(hit);
+  });
+}
+
+function selectTradeoff(pos) {
+  const t = state.tradeoff;
+  const data = state.lastResult;
+  if (!t || !data || pos === t.pos) return;
+  t.pos = pos;
+  const chosen = t.positions[pos];
+  data.routes = data.routes.map((r) => (r.id === "eco" ? chosen.route : r));
+  data.comparison = chosen.comparison;
+  drawRoutes(data.routes);
+  renderComparison(data);
+  renderHealthTips(data);
+  renderCards(data);
+  renderTradeoff();
 }
 
 // ── RENDER CARDS ──────────────────────────────────────────────────
@@ -712,7 +1057,7 @@ async function exportGpx(routeId) {
   const gpx = routeToGpx(route, state.lastRequest);
   const { scenario, depart_at: departAt } = state.lastRequest;
   const km = (route.metrics.distance_m / 1000).toFixed(1);
-  const fileName = `biking-${route.label.toLowerCase()}-${km}km-${scenario}-${departAt.slice(11, 16).replace(":", "")}.gpx`;
+  const fileName = `biking-${route.label.toLowerCase().replace(/\s+/g, "-")}-${km}km-${scenario}-${departAt.slice(11, 16).replace(":", "")}.gpx`;
   const file = new File([gpx], fileName, { type: "application/gpx+xml" });
 
   // Phones: the system share sheet sends the file straight to Komoot, Garmin Connect, Strava...
@@ -881,6 +1226,7 @@ function refreshColours() {
   if (state.lastResult) {
     drawRoutes(state.lastResult.routes);
     renderCards(state.lastResult);
+    drawTradeoffChart();
   }
   if (state.shadeLayer) state.shadeLayer.resetStyle();
 }
@@ -958,9 +1304,15 @@ $("shadeLayer").addEventListener("change", loadShadeLayer);
 factorBoxes().forEach((b) => b.addEventListener("change", onFactorChange));
 map.on("moveend", () => $("shadeLayer").checked && debounceShade());
 
+$("tradeoffSlider").addEventListener("input", (e) => onSlider(+e.target.value));
+$("tradeoffSlider").addEventListener("keydown", onSliderKey);
+new ResizeObserver(() => drawTradeoffChart()).observe($("tradeoffChart"));
+
 $("findBtn").addEventListener("click", findRoutes);
 $("clearBtn").addEventListener("click", clearAll);
 $("demoBtn").addEventListener("click", loadDemoRoute);
+if ("geolocation" in navigator) $("locateBtn").addEventListener("click", locateMe);
+else $("locateBtn").hidden = true;       // no Geolocation API at all: nothing to offer
 
 initTheme();
 initAccessibility();

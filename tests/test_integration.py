@@ -129,7 +129,7 @@ def test_far_point_index_is_reported_in_request_order(client):
     assert r.status_code == 422 and r.get_json()["detail"]["index"] == 1
 
 
-def test_factors_choose_what_the_healthier_route_avoids(client):
+def test_factors_choose_what_the_comfortable_route_avoids(client):
     """Smog at dusk: only the air differs between the arterial and the park, so without "air" ECO == FASTEST."""
     every = post_route(client, [A, B], scenario=SMOG).get_json()
     assert every["comparison"]["same_route"] is False and every["routes"][1]["metrics"]["distance_m"] == 300

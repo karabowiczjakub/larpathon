@@ -3,12 +3,12 @@ from __future__ import annotations
 
 import logging
 import time
-from dataclasses import replace
+from dataclasses import dataclass, replace
 from datetime import datetime
 
 import numpy as np
 
-from ..contracts import EdgeExposure, PointOutsideArea, Route
+from ..contracts import EdgeExposure, EnvironmentalContext, PointOutsideArea, Route
 from ..profiles import PROFILES, RiderProfile
 from ..providers import Modules
 from ..schemas import FACTORS, LayerQuery, RouteRequest, to_local
@@ -20,6 +20,26 @@ log = logging.getLogger(__name__)
 WARMUP_POINTS = ({"lat": 50.0614, "lon": 19.9366}, {"lat": 50.0540, "lon": 19.9350})
 # A factor switched off in "advanced options" is fed to the fuzzy model as neutral: (exposure field, value)
 NEUTRAL_INPUTS = {"heat": ("utci_c", 15.0), "air": ("air_index", 0.0), "uv": ("uv_eff", 0.0)}
+# Trade-off slider: the profile's ECO weights times these, from barely slower to most comfortable
+TRADEOFF_WEIGHTS = (0.25, 0.5, 1.0, 2.0, 4.0, 8.0, 16.0)
+TRADEOFF_MAX_EXTRA = 0.30   # longer detours buy too little (roles/04 §7: over +50% is absurd)
+# Smallest gain worth one more step on the slider: 0.05 on the 0-10 discomfort scale, 2% of the dose
+TRADEOFF_MIN_GAIN = {"discomfort": 0.005, "pm25_dose": 0.02}
+
+
+@dataclass
+class _Plan:
+    """Everything a routing request needs before Dijkstra (shared by route and tradeoff)."""
+
+    profile: RiderProfile
+    ctx: EnvironmentalContext
+    at: datetime
+    costs: EdgeCosts            # full model: metrics, segments
+    points: list[tuple[float, float]]
+    order: list[int]
+    factors: set[str]
+    route_costs: EdgeCosts      # the chosen factors only: what the routes are picked on
+    route_profile: RiderProfile
 
 
 class UnknownScenario(ValueError):
@@ -89,6 +109,84 @@ class Engine:
     # ---------- main flow ----------
     def route(self, req: RouteRequest) -> dict:
         timer = _Timer()
+        plan = self._plan(req, timer)
+        found = [(v, self._find(plan, v.cost(plan.route_costs, plan.route_profile))) for v in self.variants]
+        timer.lap("routing")
+
+        reference = found[0][1]
+        routes = [
+            self._describe(v, r, plan.costs, plan.profile, None if i == 0 else reference, plan.points,
+                           plan.route_costs.exposure)
+            for i, (v, r) in enumerate(found)
+        ]
+        same = np.array_equal(found[0][1].eids, found[1][1].eids)
+        result = {
+            "routes": routes,
+            "comparison": metrics.compare(routes[0]["metrics"], routes[1]["metrics"], same),
+            "order": plan.order,
+            "factors": [f for f in FACTORS if f in plan.factors],
+            "conditions": plan.ctx.summary(),
+            "sun": self._sun(plan.at),
+        }
+        timer.lap("describe")
+        result["timing_ms"] = timer.done()
+        return result
+
+    def tradeoff(self, req: RouteRequest) -> dict:
+        """More comfortable routes for a range of ECO weights (Pareto front of time vs discomfort),
+        so the rider picks how much extra time comfort is worth. Weight 1 is /api/route's route."""
+        timer = _Timer()
+        plan = self._plan(req, timer)
+        fast_variant, eco_variant = self.variants[0], self.variants[1]
+        fastest = self._find(plan, fast_variant.cost(plan.route_costs, plan.route_profile))
+        seen = {np.asarray(fastest.eids).tobytes()}
+        found, on_map = [], None
+        for w in TRADEOFF_WEIGHTS:
+            weighted = replace(plan.route_profile, eco_alpha=plan.route_profile.eco_alpha * w,
+                               eco_air_weight=plan.route_profile.eco_air_weight * w)
+            r = self._find(plan, eco_variant.cost(plan.route_costs, weighted))
+            key = np.asarray(r.eids).tobytes()
+            if w == 1.0:
+                on_map = key  # what /api/route shows as "More comfortable"
+            if key not in seen:
+                seen.add(key)
+                found.append((w, r, key))
+        timer.lap("routing")
+
+        # Asthma (and "air only") routes are chosen for cleaner air: rank them by the dose, the rest by discomfort
+        axis = "pm25_dose" if plan.route_profile.eco_air_weight > 0 or plan.factors == {"air"} else "discomfort"
+        fast_score = self._score(plan, fastest, axis)
+        min_gain = TRADEOFF_MIN_GAIN[axis] * (fast_score[1] if axis == "pm25_dose" else 1.0)
+        kept = _pareto(fast_score, [(w, r, self._score(plan, r, axis), key == on_map) for w, r, key in found], min_gain)
+        reference = self._describe(fast_variant, fastest, plan.costs, plan.profile, None, plan.points,
+                                   plan.route_costs.exposure)
+        options, default = [], None
+        for w, r, (_, score), shown in kept:
+            route = self._describe(eco_variant, r, plan.costs, plan.profile, fastest, plan.points,
+                                   plan.route_costs.exposure)
+            if shown:
+                default = len(options)
+            options.append({"weight": w, "value": _axis_value(axis, score), "route": route,
+                            "comparison": metrics.compare(reference["metrics"], route["metrics"], False)})
+        timer.lap("describe")
+        return {
+            "axis": axis,
+            "fastest": {**reference["metrics"], "value": _axis_value(axis, fast_score[1])},
+            "options": options,
+            "default_index": default,  # None: /api/route found no detour, the map shows the fastest route
+            "timing_ms": timer.done(),
+        }
+
+    def warmup(self) -> None:
+        t0 = time.perf_counter()
+        try:
+            self.route(RouteRequest(points=list(WARMUP_POINTS)))
+            log.info("warmup ok in %.0f ms", (time.perf_counter() - t0) * 1000)
+        except Exception:
+            log.exception("warmup failed (the API still starts)")
+
+    # ---------- helpers ----------
+    def _plan(self, req: RouteRequest, timer: _Timer) -> _Plan:
         self._check_scenario(req.scenario)
         profile = self.profiles[req.profile]
         ctx = self.env.get(req.scenario, req.depart_at)
@@ -101,48 +199,33 @@ class Engine:
 
         points = [(p.lat, p.lon) for p in req.points]
         order = self._order(points, costs, profile) if req.optimize_order else list(range(len(points)))
-        points = [points[i] for i in order]
         factors = set(req.factors)
         route_costs, route_profile = costs, profile
         if factors != set(FACTORS):
             route_costs = self._focus(costs, profile, factors)
             if "air" not in factors:
                 route_profile = replace(profile, eco_air_weight=0.0)
+        return _Plan(profile, ctx, at, costs, [points[i] for i in order], order, factors, route_costs, route_profile)
+
+    @staticmethod
+    def _score(plan: _Plan, route: Route, axis: str) -> tuple[float, float]:
+        """(travel time [s], what the slider trades time for), unrounded so the front is exact. Discomfort is
+        the one the route was chosen on (selected factors only), the dose is the real one."""
+        e = np.asarray(route.eids, dtype=np.int64)
+        t = plan.costs.time_s[e]
+        total = float(t.sum())
+        if axis == "pm25_dose":
+            return total, float((np.asarray(plan.costs.exposure.pm25)[e] * t).sum() * plan.profile.ventilation_m3h / 3600)
+        return total, float((t * np.asarray(plan.route_costs.exposure.discomfort)[e]).sum() / total) if total else 0.0
+
+    def _find(self, plan: _Plan, edge_cost: np.ndarray) -> Route:
         try:
-            found = [(v, self.graph.route(points, v.cost(route_costs, route_profile))) for v in self.variants]
+            return self.graph.route(plan.points, edge_cost)
         except PointOutsideArea as e:
-            if e.index is not None and 0 <= e.index < len(order):
-                e.index = order[e.index]  # report the point as the client numbered it
+            if e.index is not None and 0 <= e.index < len(plan.order):
+                e.index = plan.order[e.index]  # report the point as the client numbered it
             raise
-        timer.lap("routing")
 
-        reference = found[0][1]
-        routes = [
-            self._describe(v, r, costs, profile, None if i == 0 else reference, points, route_costs.exposure)
-            for i, (v, r) in enumerate(found)
-        ]
-        same = np.array_equal(found[0][1].eids, found[1][1].eids)
-        result = {
-            "routes": routes,
-            "comparison": metrics.compare(routes[0]["metrics"], routes[1]["metrics"], same),
-            "order": order,
-            "factors": [f for f in FACTORS if f in factors],
-            "conditions": ctx.summary(),
-            "sun": self._sun(at),
-        }
-        timer.lap("describe")
-        result["timing_ms"] = timer.done()
-        return result
-
-    def warmup(self) -> None:
-        t0 = time.perf_counter()
-        try:
-            self.route(RouteRequest(points=list(WARMUP_POINTS)))
-            log.info("warmup ok in %.0f ms", (time.perf_counter() - t0) * 1000)
-        except Exception:
-            log.exception("warmup failed (the API still starts)")
-
-    # ---------- helpers ----------
     def _check_scenario(self, scenario: str) -> None:
         known = {s["id"] for s in self.env.scenarios()}
         if scenario not in known:
@@ -228,6 +311,23 @@ class Engine:
             return {"live_source": None, "live_data_age_s": None}
         age = round(float(ctx.data_age_s), 1) if ctx.source in {"live", "mock"} else None
         return {"live_source": ctx.source, "live_data_age_s": age}
+
+
+def _pareto(fastest: tuple[float, float], found: list[tuple], min_gain: float) -> list[tuple]:
+    """Routes that buy comfort with time, quickest first; items are (weight, route, (time_s, score), on_map).
+    Each slower one must beat every quicker one (and the fastest) by min_gain and be at most
+    TRADEOFF_MAX_EXTRA longer. The route already on the map always stays, so the slider starts there."""
+    fast_time, best = fastest
+    keep = []
+    for w, r, (t, score), on_map in sorted(found, key=lambda x: x[2]):
+        if on_map or (score <= best - min_gain and t <= fast_time * (1 + TRADEOFF_MAX_EXTRA)):
+            keep.append((w, r, (t, score), on_map))
+            best = min(best, score)
+    return keep
+
+
+def _axis_value(axis: str, value: float) -> float:
+    return round(value * 10, 2) if axis == "discomfort" else round(value, 2)  # 0-10 scale / µg
 
 
 def _sun_time(scenario: str, at: datetime | None, ctx) -> datetime:

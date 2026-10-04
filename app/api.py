@@ -27,6 +27,12 @@ def route():
     return jsonify(_engine().route(req))
 
 
+@bp.post("/route/tradeoff")
+def route_tradeoff():
+    req = RouteRequest.model_validate(_json_body())
+    return jsonify(_engine().tradeoff(req))
+
+
 @bp.get("/scenarios")
 def scenarios():
     return jsonify(_engine().scenarios())

@@ -56,7 +56,7 @@
           <p class="cvd-title">Display</p>
           <label class="a11y-toggle"><input type="checkbox" id="contrastToggle" /> High contrast: thicker lines, stronger text</label>
           <label class="a11y-toggle"><input type="checkbox" id="motionToggle" /> Reduce motion: no animations</label>
-          <p class="cvd-note">The fastest route is always dashed and the healthier one solid, so they differ without
+          <p class="cvd-note">The fastest route is always dashed and the more comfortable one solid, so they differ without
             colour too. Your choices are remembered in this browser.</p>
         </div>
       </div>
@@ -69,6 +69,8 @@
         <h2>Waypoints</h2>
         <ol id="waypoints" class="waypoints-list"></ol>
         <p class="hint" id="waypointHint">Click the map to add a start point.</p>
+        <button id="locateBtn" class="btn-locate" type="button"
+                title="Use your current position (GPS or network) as start point A">📍 Start from my location</button>
         <label class="optimize-label">
           <input type="checkbox" id="optimize" /> Optimize order of via points
         </label>
@@ -81,7 +83,7 @@
         </div>
         <details class="advanced" id="advanced">
           <summary>Advanced options <span id="factorsBadge" class="factors-badge" hidden></span></summary>
-          <p class="hint">What should the healthier route avoid?</p>
+          <p class="hint">What should the more comfortable route avoid?</p>
           <label class="optimize-label"><input type="checkbox" name="factor" value="heat" checked /> 🌡️ Heat (felt temperature, sun)</label>
           <label class="optimize-label"><input type="checkbox" name="factor" value="air" checked /> 🌫️ Air pollution (PM2.5, PM10, NO₂)</label>
           <label class="optimize-label"><input type="checkbox" name="factor" value="uv" checked /> ☀️ UV radiation</label>
@@ -98,10 +100,22 @@
 
       <section class="sidebar-section" id="comparisonSection" style="display:none">
         <div class="section-head">
-          <h2>Healthier vs fastest</h2>
+          <h2>More comfortable vs fastest</h2>
           <button id="speakBtn" class="speak-btn" type="button" hidden aria-pressed="false">🔊 Read aloud</button>
         </div>
         <div id="healthTips" class="health-tips"></div>
+        <div id="tradeoff" class="tradeoff" hidden>
+          <h3 id="tradeoffTitle">How much extra time is comfort worth?</h3>
+          <p id="tradeoffAxis" class="tradeoff-axis"></p>
+          <svg id="tradeoffChart" class="tradeoff-chart" role="img"></svg>
+          <div id="tradeoffTip" class="tradeoff-tip" hidden></div>
+          <input id="tradeoffSlider" type="range" min="0" max="1" step="0.1" value="0" aria-labelledby="tradeoffTitle" />
+          <p id="tradeoffOut" class="tradeoff-out"></p>
+          <details class="glossary">
+            <summary>Show as a table</summary>
+            <table id="tradeoffTable" class="tradeoff-table"></table>
+          </details>
+        </div>
         <div id="comparison"></div>
       </section>
 
@@ -116,7 +130,7 @@
     </aside>
 
     <div id="map" role="region"
-         aria-label="Map of Kraków. Click to add route points, or use Load demo route. Arrow keys move the map, plus and minus zoom."></div>
+         aria-label="Map of Kraków. Click to add route points, or use Start from my location or Load demo route. Arrow keys move the map, plus and minus zoom."></div>
   </main>
 
   <footer id="status"><span>📍 Click the map to add a start point.</span></footer>

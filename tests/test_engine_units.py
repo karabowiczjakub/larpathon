@@ -8,6 +8,7 @@ import pytest
 from app.contracts import EdgeExposure, EnvironmentalContext
 from app.engine import explain, metrics, ordering
 from app.engine.costs import EdgeCostBuilder, EdgeCosts, context_key, time_bucket
+from app.engine.service import _pareto
 from app.engine.variants import ECO, FASTEST
 from app.profiles import PROFILES
 
@@ -89,13 +90,42 @@ def test_compare_deltas_and_zero_safety():
     e = {"time_min": 12.0, "pm25_dose_ug": 3.0, "shade_pct": 50.0, "heat_stress_min": 1.0, "uv_high_min": 2.5,
          "air_poor_min": 0.5, "utci_avg_c": 35.1}
     c = metrics.compare(f, e, same_route=False)
-    assert c == {"same_route": False, "time_delta_min": 2.0, "time_delta_pct": 20.0, "pm25_dose_delta_pct": -25.0,
+    assert c == {"same_route": False, "equivalent": False, "time_delta_min": 2.0, "time_delta_pct": 20.0, "pm25_dose_delta_pct": -25.0,
                  "shade_delta_pp": 30.0, "heat_stress_delta_min": -4.0, "uv_high_delta_min": -3.5,
                  "air_poor_delta_min": -3.5, "utci_delta_c": -3.3}
     assert metrics.compare({**f, "utci_avg_c": None}, e, False)["utci_delta_c"] == 0.0
     zero = dict.fromkeys(f, 0.0)
     assert metrics.compare(zero, zero, True)["time_delta_pct"] == 0.0
     assert metrics.compare({**f, "pm25_dose_ug": None}, e, False)["pm25_dose_delta_pct"] == 0.0
+
+
+def test_marginal_gains_make_the_routes_equivalent():
+    """The screenshot case: night, 36% more trees, +7% time, +1% dose, discomfort 4.0 -> 3.7."""
+    f = {"avg_discomfort": 4.0, "pm25_dose_ug": 13.0, "air_poor_min": 0.0, "heat_stress_min": 0.0,
+         "uv_high_min": 0.0, "utci_avg_c": 11.5}
+    e = {**f, "avg_discomfort": 3.7, "pm25_dose_ug": 13.2, "utci_avg_c": 11.9}
+    assert metrics.equivalent(f, e) is True
+    full = {**f, "time_min": 18.6, "shade_pct": 100.0}
+    assert metrics.compare(full, full, same_route=True)["equivalent"] is True
+    for better in ({"avg_discomfort": 3.4}, {"pm25_dose_ug": 12.4}, {"air_poor_min": -1.5}):
+        assert metrics.equivalent(f, {**e, **better}) is False, better      # one real gain is enough
+    hot = {**f, "utci_avg_c": 37.8}
+    assert metrics.equivalent(hot, {**e, "utci_avg_c": 36.6}) is False    # 1.2 °C cooler in a heatwave
+    assert metrics.equivalent({**f, "utci_avg_c": 12.0}, {**e, "utci_avg_c": 10.0}) is True   # not hot: no gain
+
+
+
+def test_tradeoff_front_keeps_only_routes_that_buy_comfort():
+    """Items: (weight, route, (time_s, score), on_map). Fastest: 600 s, score 0.80."""
+    found = [(0.5, "a", (660.0, 0.70), False),
+             (1.0, "b", (700.0, 0.72), True),      # on the map: kept although "a" is quicker and better
+             (2.0, "c", (720.0, 0.69), False),     # 0.01 better than "a": below the minimum gain
+             (4.0, "d", (750.0, 0.60), False),
+             (8.0, "e", (790.0, 0.50), False),     # +32 %: too long a detour
+             (16.0, "f", (740.0, 0.65), False)]    # the front is ordered by time, not by weight
+    kept = _pareto((600.0, 0.80), found, 0.02)
+    assert [k[1] for k in kept] == ["a", "b", "f", "d"]
+    assert _pareto((600.0, 0.80), [(1.0, "x", (650.0, 0.90), True)], 0.02)[0][1] == "x"
 
 
 # ---------- variants ----------

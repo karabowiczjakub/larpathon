@@ -40,7 +40,7 @@ def test_route_matches_frontend_contract(client):
         assert segs[0]["from"] == 0 and segs[-1]["to"] == len(coords) - 1
         assert all(a["to"] == b["from"] for a, b in pairwise(segs))
         assert all(0 <= s["discomfort"] <= 1 and s["reason"] in {"ok", "heat", "air", "uv"} for s in segs)
-    assert {"same_route", "time_delta_min", "time_delta_pct", "pm25_dose_delta_pct", "shade_delta_pp",
+    assert {"same_route", "equivalent", "time_delta_min", "time_delta_pct", "pm25_dose_delta_pct", "shade_delta_pp",
             "heat_stress_delta_min", "uv_high_delta_min", "air_poor_delta_min", "utci_delta_c"} <= set(d["comparison"])
     assert {"source", "temperature_c", "uv_index", "pm10", "timestamp"} <= set(d["conditions"])
     assert set(d["sun"]) == {"azimuth_deg", "elevation_deg"}
@@ -275,7 +275,7 @@ def test_frontend_is_served_and_calls_only_existing_endpoints(client):
     assert {f"/api/{path}" for path in called} <= routes
 
 
-# ---------- advanced options: which factors the healthier route avoids ----------
+# ---------- advanced options: which factors the more comfortable route avoids ----------
 def test_factors_default_to_all_and_are_echoed(client):
     d = post_route(client, [RYNEK, BLONIA], scenario=HEAT).get_json()
     assert d["factors"] == ["heat", "air", "uv"]
@@ -296,3 +296,40 @@ def test_mock_discomfort_matches_mock_exposure(mock_graph):
     ctx = MockEnv().get(HEAT, None)
     exp = mock_exposure(ctx, shade.edge_shade(ctx.timestamp), mock_graph, shade.edge_tree_frac, "asthma")
     assert np.allclose(mock_discomfort("asthma", exp.utci_c, exp.air_index, exp.uv_eff), exp.discomfort)
+
+
+# ---------- trade-off slider: how much extra time is comfort worth ----------
+def test_tradeoff_is_a_pareto_front_starting_at_the_route_on_the_map(client):
+    body = {"points": [RYNEK, BLONIA], "scenario": HEAT, "profile": "standard"}
+    shown = client.post("/api/route", json=body).get_json()
+    r = client.post("/api/route/tradeoff", json=body)
+    assert r.status_code == 200
+    d = strict_json(r)
+    assert d["axis"] == "discomfort" and d["fastest"]["time_min"] == shown["routes"][0]["metrics"]["time_min"]
+    best, prev_time = d["fastest"]["value"], d["fastest"]["time_min"]
+    for i, o in enumerate(d["options"]):
+        assert o["route"]["id"] == "eco" and set(o["comparison"]) == set(shown["comparison"])
+        assert o["route"]["metrics"]["time_min"] >= prev_time
+        assert o["comparison"]["time_delta_pct"] <= 30.0 + 0.1
+        if i != d["default_index"]:
+            assert o["value"] < best                     # every extra minute buys comfort
+        best, prev_time = min(best, o["value"]), o["route"]["metrics"]["time_min"]
+    assert len(d["options"]) >= 2                        # the mock city has a real choice here
+    if shown["comparison"]["same_route"]:
+        assert d["default_index"] is None
+    else:
+        on_map = d["options"][d["default_index"]]["route"]
+        assert on_map["geometry"] == shown["routes"][1]["geometry"]
+
+
+def test_tradeoff_ranks_asthma_routes_by_inhaled_dose(client):
+    body = {"points": [KAZIMIERZ, BLONIA], "scenario": "smog_2025-01-20", "profile": "asthma"}
+    d = client.post("/api/route/tradeoff", json=body).get_json()
+    assert d["axis"] == "pm25_dose" and d["fastest"]["value"] == pytest.approx(d["fastest"]["pm25_dose_ug"], abs=0.01)
+    body = {**body, "profile": "standard", "factors": ["air"]}
+    assert client.post("/api/route/tradeoff", json=body).get_json()["axis"] == "pm25_dose"
+
+
+def test_tradeoff_validates_like_route(client):
+    r = client.post("/api/route/tradeoff", json={"points": [RYNEK]})
+    assert r.status_code == 400 and r.get_json()["error"] == "validation"

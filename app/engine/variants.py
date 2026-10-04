@@ -56,5 +56,5 @@ def air_penalty(air_index: np.ndarray) -> np.ndarray:
 
 
 FASTEST = RouteVariant("fastest", "Fastest", "#6b7280", fastest_cost)
-ECO = RouteVariant("eco", "Healthier", "#16a34a", eco_cost)
+ECO = RouteVariant("eco", "More comfortable", "#16a34a", eco_cost)
 DEFAULT_VARIANTS: tuple[RouteVariant, ...] = (FASTEST, ECO)

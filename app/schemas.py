@@ -14,7 +14,7 @@ TZ = ZoneInfo("Europe/Warsaw")
 LAT_RANGE = (49.95, 50.15)
 LON_RANGE = (19.75, 20.25)
 MAX_POINTS = 5
-FACTORS = ("heat", "air", "uv")  # what the healthier route may avoid ("advanced options")
+FACTORS = ("heat", "air", "uv")  # what the more comfortable route may avoid ("advanced options")
 
 
 def to_local(dt: datetime | None) -> datetime | None:

@@ -85,6 +85,12 @@ travel costs. Without it, the backend orders the points by straight-line distanc
   `discomfort` (0..1) and `reason`. Over 5000 edges it keeps the longest ones and sets `truncated: true`.
 - A scenario is one recorded day: `depart_at` (and `at` in `/api/conditions`) keeps its clock time but
   is moved to the scenario's date, so the sun and shade always match the scenario's weather.
+- `POST /api/route/tradeoff` (same body as `/api/route`) feeds the "how much extra time is comfort worth?"
+  slider: ECO routes for the profile's weights × 0.25…16, kept as a Pareto front of time vs `axis`
+  (`discomfort` 0–10, or `pm25_dose` in µg for asthma and "air only"). Each slower option must gain at least
+  0.05/10 or 2% of the dose and be at most +30% time; the route `/api/route` shows always stays
+  (`default_index`, `null` when it is the fastest route). Response: `axis`, `fastest` (metrics + `value`),
+  `options` (`weight`, `value`, `route`, `comparison`), `default_index`, `timing_ms`. About 150–300 ms.
 
 ## ECO cost and benchmark (real graph, 3 Oct 2026)
 

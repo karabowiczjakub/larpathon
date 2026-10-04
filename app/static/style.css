@@ -4,7 +4,7 @@
   --color-fastest:  #6b7280;
   --color-balanced: #7c3aed;
   --color-cleanest: #16a34a;
-  --color-good:     var(--color-cleanest);  /* better / worse values; swapped in colour-vision modes */
+  --color-good:     #15803d;                 /* better / worse values (text: 4.5:1 on white); swapped in colour-vision modes */
   --color-bad:      #dc2626;
   --color-bg:       #f8fafc;
   --color-surface:  #ffffff;
@@ -35,6 +35,7 @@ body {
 :root[data-theme="dark"] {
   color-scheme: dark;                          /* native controls (selects, scrollbars) go dark too */
   --color-cleanest: #22c55e;
+  --color-good:     #22c55e;
   --color-bad:      #f87171;
   --color-bg:       #0f172a;
   --color-surface:  #1e293b;
@@ -400,6 +401,23 @@ body[data-cvd="greyscale"] .card-metric-val.bad { text-decoration: underline; }
   margin-bottom: 6px;
 }
 
+.btn-locate {
+  width: 100%;
+  min-height: 32px;
+  margin-bottom: 10px;
+  padding: 4px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: calc(12px * var(--text-scale));
+  font-weight: 600;
+  cursor: pointer;
+}
+.btn-locate:hover:not(:disabled) { border-color: var(--color-primary); color: var(--color-primary); }
+.btn-locate:disabled { opacity: .6; cursor: progress; }
+.btn-locate[hidden] { display: none; }
+
 .btn-demo {
   width: 100%;
   padding: 6px 4px;
@@ -461,10 +479,11 @@ body[data-cvd="greyscale"] .card-metric-val.bad { text-decoration: underline; }
 .route-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,.08); }
 .route-card.active { border-color: currentColor; box-shadow: 0 2px 12px rgba(0,0,0,.12); }
 
-.card-header {
+.card-header {                /* row 1: dot, name, GPX button; row 2: distance and time */
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: 2px 6px;
   margin-bottom: 6px;
 }
 
@@ -476,6 +495,8 @@ body[data-cvd="greyscale"] .card-metric-val.bad { text-decoration: underline; }
 
 .card-title {                 /* a button for keyboard and screen readers, styled as the card title */
   padding: 0;
+  text-align: left;
+  white-space: nowrap;
   border: none;
   background: none;
   color: inherit;
@@ -488,6 +509,9 @@ body[data-cvd="greyscale"] .card-metric-val.bad { text-decoration: underline; }
 }
 
 .card-subtitle {
+  order: 3;
+  flex-basis: 100%;
+  padding-left: 16px;          /* under the name, after the dot */
   font-size: calc(11px * var(--text-scale));
   color: var(--color-muted);
 }
@@ -609,12 +633,60 @@ body[data-cvd="greyscale"] .card-metric-val.bad { text-decoration: underline; }
 .glossary dt { font-weight: 700; margin-top: 6px; }
 .glossary dd { color: var(--color-muted); line-height: 1.4; }
 
+/* ── TRADE-OFF SLIDER ───────────────────────────────────── */
+.tradeoff {
+  position: relative;            /* anchors the hover tooltip */
+  margin-bottom: 12px;
+  padding: 10px 10px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-surface);
+}
+.tradeoff[hidden] { display: none; }
+.tradeoff h3 { font-size: calc(12px * var(--text-scale)); font-weight: 700; color: var(--color-text); }
+.tradeoff-axis { font-size: calc(10px * var(--text-scale)); color: var(--color-muted); margin: 2px 0 2px; }
+.tradeoff-chart { display: block; width: 100%; height: calc(120px * var(--text-scale)); overflow: visible; }
+.tradeoff-chart text { font-size: calc(10px * var(--text-scale)); fill: var(--color-muted); }
+.tradeoff-chart .selected-label {
+  fill: var(--color-text);
+  font-weight: 700;
+  paint-order: stroke;             /* halo: readable where it crosses the line */
+  stroke: var(--color-surface);
+  stroke-width: 3px;
+}
+.tradeoff-chart .grid { stroke: var(--color-border); stroke-width: 1; }
+.tradeoff-chart .hit { fill: transparent; cursor: pointer; }
+.tradeoff-tip {
+  position: absolute;
+  z-index: 5;
+  max-width: 220px;
+  padding: 6px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-surface);
+  color: var(--color-text);
+  font-size: calc(11px * var(--text-scale));
+  line-height: 1.4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, .15);
+  pointer-events: none;
+}
+.tradeoff-tip[hidden] { display: none; }
+#tradeoffSlider { display: block; width: 100%; margin: 2px 0 0; accent-color: var(--color-primary); cursor: pointer; }
+.tradeoff-out { margin-top: 4px; font-size: calc(12px * var(--text-scale)); font-weight: 600; color: var(--color-text); }
+.tradeoff .glossary { margin-top: 6px; }
+.tradeoff-table { width: 100%; margin-top: 4px; border-collapse: collapse; font-size: calc(11px * var(--text-scale)); }
+.tradeoff-table th, .tradeoff-table td { padding: 2px 4px; text-align: right; border-bottom: 1px solid var(--color-border); }
+.tradeoff-table th:first-child, .tradeoff-table td:first-child { text-align: left; }
+.tradeoff-table th { color: var(--color-muted); font-weight: 600; }
+.tradeoff-table tr[aria-current="true"] td { font-weight: 700; }
+
 /* ── COMPARISON & LEGEND ────────────────────────────────── */
 .comparison-same {
   font-size: calc(12px * var(--text-scale));
   font-weight: 600;
   color: var(--color-good);
 }
+.comparison-same + .card-metrics { margin-top: 6px; }
 
 .comparison-note {
   font-size: calc(11px * var(--text-scale));
