@@ -1,46 +1,44 @@
-# BiKing — final screenshots
+# BiKing — final presentation
 
-The finished presentation already exists at `BiKing_HackYeah.pptx`. Missing images have designed placeholders; all slide diagrams are editable.
+`BiKing_HackYeah.pptx` contains the completed 10-slide jury deck in 16:9, with all three supplied screenshots embedded. Text, metric cards and diagrams remain editable in PowerPoint.
 
-Put final screenshots in `presentation/assets/screenshots/`. The generator automatically contains each image in its existing frame without cropping. Existing screenshots are not modified.
+The generator reads screenshots from `presentation/` first and falls back to `presentation/assets/screenshots/`. Source PNGs are not modified; their aspect ratios are preserved. The main screen's browser toolbar is hidden with a native PowerPoint crop.
 
-## Capture readiness
+## Slide 3 — Main application screen
 
-This checkout contains the implemented Flask/Leaflet app, environmental scenarios, fuzzy tables and a synthetic shade preview. It currently lacks the city-wide `graph.npz`, `edges.parquet`, `edge_coords.npz`, `shade.npy`, `shade_bins.json` and `edge_tree_frac.npy` in `data/processed/`. Load matching artifacts before capturing real Kraków routing. The optional `edge_heat.npz` is also absent.
+- Embedded source: `presentation/main_ui.png` (1866 × 1017 px).
+- Visible: Kraków map, A/B waypoints, scenario, profile, departure controls and comfort/time slider. The browser toolbar is cropped in PowerPoint.
 
-Check `/api/health` before capture. A mock fallback must not be presented as real city data. Historical scenario data is legitimate when the selected scenario and departure time remain visible. Do not replace missing screenshots with generated UI or hand-drawn routes.
+## Slide 7 — Fastest vs More comfortable
 
-## Slide 3 — main_ui.png
+- Embedded source: `presentation/route_comparison.png` (1041 × 637 px).
+- Visible: Both routes on the Kraków map with common A/B points. The legend matches the orange Fastest segments and blue More comfortable alternative. OpenStreetMap attribution is included below the map.
 
-- Status: Missing — placeholder.
-- Visible: Kraków map, A/B waypoints, scenario, profile and departure controls.
-- Recommended application state: Use the real Flask/Leaflet app in light mode at a desktop viewport. Select the heatwave scenario and a profile; keep the map and controls unobstructed. Choose origin and destination, then let route calculation finish.
-- Must not be visible: Loading overlay, browser chrome, devtools, errors, unrelated tabs, mock data passed off as city data, open accessibility popovers.
-- Why it matters: Shows that the user journey lives in one working application screen.
-- Recommended size: 1600 × 950 or a similar landscape aspect ratio; capture the application only.
+## Slide 8 — Route details and trade-off
 
-## Slide 7 — route_comparison.png
+- Embedded source: `presentation/route_detail.png` (370 × 782 px).
+- Visible: Route cards, time/distance, shade, felt temperature, PM2.5 estimate, poor-air/high-UV minutes, avoided-street explanation and GPX controls. The portrait screenshot sits beside large editable trade-off highlights.
 
-- Status: Missing — placeholder.
-- Visible: Both routes on one map, identical origin/destination, dashed grey Fastest and solid green More comfortable, route legend and visible route separation.
-- Recommended application state: First load matching city graph and shade artifacts. Verify /api/health reports real graph, shade, environment and exposure modules. Use Heatwave · 3 Jul 2025, 14:00 and Senior / Child as a starting point. The existing Load demo route preset uses Kazimierz → Rondo Mogilskie → Nowa Huta. Check that the returned routes actually differ; otherwise choose another real A/B pair. Keep all factors enabled. Capture the map and save the /api/route response from that same run for metric entry.
-- Must not be visible: Different endpoints or times for the two routes, synthetic fixture networks, a mock result labelled real, manual route drawings, invented gains, loading states. Retain OpenStreetMap attribution when map tiles are visible.
-- Why it matters: Demonstrates that environmental edge costs can change the route geometry.
-- Recommended size: 1900 × 850 or a similar wide map crop; leave enough detail to see both routes.
+## Demo metrics — slides 7 and 8
 
-## Slide 8 — route_details.png
+Values are transcribed at the precision visible in the user-supplied `route_detail.png`. BiKing in slide 7's cards means More comfortable. The main screen on slide 3 shows a separate slider selection.
 
-- Status: Missing — placeholder.
-- Visible: Real route cards, time/distance, shade, felt temperature, PM2.5 estimate, poor-air/high-UV minutes, actual avoided-street explanation, comfort/time slider and GPX export control. Keep some map visible if practical.
-- Recommended application state: Use the same fully calculated route request as slide 7, preferably with more than one valid trade-off option. Select More comfortable, scroll only enough to show its card and the trade-off panel. If the UI reports no useful detour, show that honest state or select a different real demo pair.
-- Must not be visible: Mock numbers, fabricated explanation text, clipped cards, open tooltips obscuring metrics, health claims beyond the model, debug panes and loading overlays.
-- Why it matters: Shows how GIS and environmental modelling become an understandable choice.
-- Recommended size: 1500 × 850 or a similar landscape crop. Preserve text legibility.
+| Metric | Fastest | More comfortable |
+| --- | ---: | ---: |
+| Distance | 4.3 km | 5.5 km |
+| Travel time | 17.3 min | 22.2 min |
+| Shade | 12% | 47% |
+| Felt temperature / UTCI model | 36.9°C | 34.8°C |
+| PM2.5 dose / model estimate | 5.1 µg | 6.0 µg |
+| High UV | 15.8 min | 10.8 min |
+| Poor air | 2.9 min | 2.0 min |
+| Discomfort | 9.0/10 | 8.1/10 |
 
-## Slide 7 metric cards
+The highlighted trade-off is +4.9 min (+28%), +35 percentage points of shade and −2.1°C felt temperature, with +18% modelled PM2.5 dose. The dose increase remains explicit. These are single-demo model outputs.
 
-All current values are `—`. After capturing the final comparison, use the exact same `/api/route` response to enter both routes' `time_min`, `shade_pct`, `utci_avg_c` and `pm25_dose_ug` in the editable cards. BiKing in these cards means More comfortable. Preserve the model labels for UTCI and PM2.5 dose. Screenshot replacement does not invent or infer metric values.
+## View and regenerate
 
-## Shadow screenshot
-
-No `shadow_debug.png` is required. Slide 6 is complete with a native PowerPoint geometry diagram and the actual ray-marching inequality. The existing `data/shade_preview/shade_comparison.png` is synthetic and is deliberately not used as a real-city screenshot.
+Open `BiKing_HackYeah.pptx` in PowerPoint and start the slideshow.
+Regenerate from the repository root: `python presentation/generate_presentation.py`.
+The generator requires all three PNGs and validates the saved PPTX archive, shape bounds and text layout. `validation.json` records the result.
+`previews/contact_sheet.png` and `previews/slide_*.png` are static layout previews; they are not Office renders.

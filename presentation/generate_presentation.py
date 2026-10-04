@@ -1,4 +1,4 @@
-"""Build the jury deck, screenshot checklist and static layout previews."""
+"""Build the final jury deck, screenshot manifest and static layout previews."""
 
 from __future__ import annotations
 
@@ -36,6 +36,8 @@ MUTED = "607068"
 PALE = "C0D0C5"
 BORDER = "D9E2D9"
 GOLD = "F3C76A"
+DEMO_FASTEST = "F4A259"
+DEMO_COMFORT = "4393C3"
 SHADOW = "E9EEE6"
 EMU = 914400
 SCALE = 100
@@ -46,48 +48,24 @@ SCREENSHOT_SPECS = [
         "slide": 3,
         "filename": "main_ui.png",
         "title": "Main application screen",
-        "visible": "Kraków map, A/B waypoints, scenario, profile and departure controls.",
-        "state": "Use the real Flask/Leaflet app in light mode at a desktop viewport. "
-        "Select the heatwave scenario and a profile; keep the map and controls unobstructed. "
-        "Choose origin and destination, then let route calculation finish.",
-        "exclude": "Loading overlay, browser chrome, devtools, errors, unrelated tabs, "
-        "mock data passed off as city data, open accessibility popovers.",
-        "why": "Shows that the user journey lives in one working application screen.",
-        "size": "1600 × 950 or a similar landscape aspect ratio; capture the application only.",
+        "visible": "Kraków map, A/B waypoints, scenario, profile, departure controls "
+        "and comfort/time slider. The browser toolbar is cropped in PowerPoint.",
     },
     {
         "slide": 7,
         "filename": "route_comparison.png",
         "title": "Fastest vs More comfortable",
-        "visible": "Both routes on one map, identical origin/destination, dashed grey Fastest "
-        "and solid green More comfortable, route legend and visible route separation.",
-        "state": "First load matching city graph and shade artifacts. Verify /api/health reports "
-        "real graph, shade, environment and exposure modules. Use Heatwave · 3 Jul 2025, "
-        "14:00 and Senior / Child as a starting point. The existing Load demo route preset "
-        "uses Kazimierz → Rondo Mogilskie → Nowa Huta. Check that the returned routes "
-        "actually differ; otherwise choose another real A/B pair. Keep all factors enabled. "
-        "Capture the map and save the /api/route response from that same run for metric entry.",
-        "exclude": "Different endpoints or times for the two routes, synthetic fixture networks, "
-        "a mock result labelled real, manual route drawings, invented gains, loading states. "
-        "Retain OpenStreetMap attribution when map tiles are visible.",
-        "why": "Demonstrates that environmental edge costs can change the route geometry.",
-        "size": "1900 × 850 or a similar wide map crop; leave enough detail to see both routes.",
+        "visible": "Both routes on the Kraków map with common A/B points. The legend "
+        "matches the orange Fastest segments and blue More comfortable alternative. "
+        "OpenStreetMap attribution is included below the map.",
     },
     {
         "slide": 8,
-        "filename": "route_details.png",
-        "title": "Route details and trade-off controls",
-        "visible": "Real route cards, time/distance, shade, felt temperature, PM2.5 estimate, "
-        "poor-air/high-UV minutes, actual avoided-street explanation, comfort/time slider "
-        "and GPX export control. Keep some map visible if practical.",
-        "state": "Use the same fully calculated route request as slide 7, preferably with "
-        "more than one valid trade-off option. Select More comfortable, scroll only enough "
-        "to show its card and the trade-off panel. If the UI reports no useful detour, "
-        "show that honest state or select a different real demo pair.",
-        "exclude": "Mock numbers, fabricated explanation text, clipped cards, open tooltips "
-        "obscuring metrics, health claims beyond the model, debug panes and loading overlays.",
-        "why": "Shows how GIS and environmental modelling become an understandable choice.",
-        "size": "1500 × 850 or a similar landscape crop. Preserve text legibility.",
+        "filename": "route_detail.png",
+        "title": "Route details and trade-off",
+        "visible": "Route cards, time/distance, shade, felt temperature, PM2.5 estimate, "
+        "poor-air/high-UV minutes, avoided-street explanation and GPX controls. The "
+        "portrait screenshot sits beside large editable trade-off highlights.",
     },
 ]
 
@@ -306,9 +284,10 @@ def new_slide(
     return slide
 
 
-def picture_contained(slide, path, x, y, w, h, name="picture"):
+def picture_contained(slide, path, x, y, w, h, name="picture", crop_top=0.0):
     with Image.open(path) as image:
         iw, ih = image.size
+    ih *= 1 - crop_top
     scale = min(w / iw, h / ih)
     pw, ph = iw * scale, ih * scale
     obj = slide.shapes.add_picture(
@@ -319,13 +298,19 @@ def picture_contained(slide, path, x, y, w, h, name="picture"):
         height=Inches(ph),
     )
     obj.name = name
+    obj.crop_top = crop_top
     obj._element.nvPicPr.cNvPr.set("descr", path.name)
     return obj
 
 
-def screenshot(slide, filename, title, description, x, y, w, h):
+def screenshot_path(filename: str) -> Path:
+    path = OUT / filename
+    return path if path.is_file() else SCREENSHOTS / filename
+
+
+def screenshot(slide, filename, title, description, x, y, w, h, crop_top=0.0):
     card(slide, x, y, w, h)
-    path = SCREENSHOTS / filename
+    path = screenshot_path(filename)
     if path.is_file():
         picture_contained(
             slide,
@@ -335,6 +320,7 @@ def screenshot(slide, filename, title, description, x, y, w, h):
             w - 0.24,
             h - 0.24,
             name=f"screenshot-{filename}",
+            crop_top=crop_top,
         )
         return
     obj = shape(
@@ -626,6 +612,7 @@ def make_deck() -> Presentation:
         2.17,
         9.93,
         5.81,
+        crop_top=74 / 1017,
     )
     notes(
         s,
@@ -633,8 +620,9 @@ def make_deck() -> Presentation:
         "waypoints; the route automatically recalculates. Up to five points are accepted. "
         "Scenario/profile/departure controls and selected heat/air/UV factors are implemented. "
         "POST /api/route/tradeoff powers the comfort/time slider. GPX export is implemented "
-        "in routeToGpx/exportGpx. Export is not built-in turn-by-turn navigation. Screenshot "
-        "placeholder is deliberate and is replaced automatically if main_ui.png exists.",
+        "in routeToGpx/exportGpx. Screenshot: presentation/main_ui.png, supplied by the "
+        "user. The browser toolbar is cropped in PowerPoint; the source image is preserved. "
+        "This overview shows a separate slider selection from the route cards on slide 8.",
     )
 
     s = new_slide(
@@ -724,8 +712,8 @@ def make_deck() -> Presentation:
         "OSM and MSIP 2015 green cover, with documented fallbacks. Building heights may be "
         "measured, tagged, inferred from floors, or defaults; tree heights are assumptions. "
         "Graph construction is offline OSM PBF → pyosmium → OSMnx → SciPy CSR. "
-        "No Airly, Sentinel or Google Maps integration is claimed. Optional Landsat "
-        "heat-map code exists but its artifact is absent here, so it is not a core data-flow claim.",
+        "No Airly, Sentinel or Google Maps integration is claimed. The optional Landsat "
+        "heat-map pipeline adds a surface-temperature anomaly correction to the model.",
     )
 
     s = new_slide(
@@ -899,12 +887,12 @@ def make_deck() -> Presentation:
     )
 
     s = new_slide(
-        prs, 7, "The proof / final demo capture", "Same city. Different route."
+        prs, 7, "The demo / route comparison", "Same city. Different route."
     )
-    line(s, M + 0.03, 2.22, M + 0.68, 2.22, MUTED, 3, dashed=True)
-    text(s, "Fastest", 1.58, 2.02, 2.03, 0.44, 20, MUTED, True)
-    line(s, 3.63, 2.22, 4.29, 2.22, GREEN, 3)
-    text(s, "More comfortable", 4.48, 2.02, 5.85, 0.44, 20, GREEN, True)
+    line(s, M + 0.03, 2.22, M + 0.68, 2.22, DEMO_FASTEST, 3)
+    text(s, "Fastest", 1.58, 2.02, 2.03, 0.44, 20, INK, True)
+    line(s, 3.63, 2.22, 4.29, 2.22, DEMO_COMFORT, 3)
+    text(s, "More comfortable", 4.48, 2.02, 5.85, 0.44, 20, INK, True)
     screenshot(
         s,
         "route_comparison.png",
@@ -916,30 +904,38 @@ def make_deck() -> Presentation:
         4.64,
     )
     metric_specs = [
-        ("Travel time", "min"),
-        ("Shade", "% of ride"),
-        ("Felt temperature", "°C / UTCI model"),
-        ("PM2.5 dose", "µg / model estimate"),
+        ("Travel time", "min", "17.3", "22.2"),
+        ("Shade", "% of ride", "12", "47"),
+        ("Felt temperature", "°C / UTCI model", "36.9", "34.8"),
+        ("PM2.5 dose", "µg / model estimate", "5.1", "6.0"),
     ]
-    for i, (label, unit) in enumerate(metric_specs):
+    for i, (label, unit, fastest, comfortable) in enumerate(metric_specs):
         y = 2.06 + i * 1.32
         card(s, 11.42, y, 3.86, 1.18, accent=i == 1)
         text(s, label, 11.65, y + 0.12, 3.38, 0.35, 19, INK, True)
         text(
-            s, "Fastest  —    BiKing  —", 11.65, y + 0.48, 3.38, 0.38, 18.5, GREEN, True
+            s,
+            f"Fastest {fastest}  /  BiKing {comfortable}",
+            11.65,
+            y + 0.48,
+            3.38,
+            0.38,
+            17,
+            GREEN,
+            True,
         )
         text(s, unit, 11.65, y + 0.9, 3.38, 0.29, 15.5, MUTED)
     text(
         s,
-        "Same departure time, scenario and rider profile.",
+        "Same A/B points.  Map © OpenStreetMap contributors.",
         M,
         7.48,
         10.36,
         0.37,
-        18,
+        16,
         MUTED,
     )
-    text(s, "Final demo values pending", 11.43, 7.47, 3.84, 0.35, 16, MUTED)
+    text(s, "Values from the route cards", 11.43, 7.47, 3.84, 0.35, 15, MUTED)
     text(
         s,
         "Environmental conditions can change the path itself.",
@@ -953,19 +949,20 @@ def make_deck() -> Presentation:
     )
     notes(
         s,
-        "This screenshot and the metric values are pending real-city capture. "
-        "BiKing here means More comfortable. The metrics are real implemented fields in "
+        "User-supplied map: presentation/route_comparison.png. The active Fastest route "
+        "has orange discomfort segments; the More comfortable alternative is blue in "
+        "the accessibility palette. The legend matches the supplied image. "
+        "Values are transcribed from presentation/route_detail.png, shown on slide 8: "
+        "Fastest 4.3 km / 17.3 min / 12% shade / 36.9°C / 5.1 µg PM2.5; "
+        "More comfortable 5.5 km / 22.2 min / 47% shade / 34.8°C / 6.0 µg PM2.5. "
+        "BiKing here means More comfortable. The metrics are implemented fields in "
         "app/engine/metrics.py: time_min, shade_pct, utci_avg_c, pm25_dose_ug. "
         "Shade and UTCI are time-weighted; PM2.5 dose is concentration × profile ventilation "
-        "× travel time. This is a model estimate, not a personal dosimeter reading. "
-        "The checkout lacks graph.npz, edge_coords.npz, edges.parquet and city shade artifacts "
-        "under data/processed. Do not use the synthetic shade_preview map or test networks "
-        "as Kraków proof. Tests/test_integration.py verifies differing geometries with "
-        "the real implementations on fixture graphs, not city performance. "
+        "× travel time. The screenshots show model estimates for one demo. "
         "The Fastest route is a BiKing baseline at profile speed, not a Google Maps benchmark. "
         "If both routes coincide, the app explicitly reports that rather than forcing a detour. "
-        "Replacing the screenshot never auto-imports numbers; enter matched /api/route values "
-        "in the editable PowerPoint cards after the final capture. No reduction is invented.",
+        "The main UI screenshot on slide 3 is a separate application overview. "
+        "No API response accompanied the supplied images; numbers use the visible card precision.",
     )
 
     s = new_slide(
@@ -975,29 +972,50 @@ def make_deck() -> Presentation:
         "Complexity under the hood.\nSimple for the cyclist.",
         title_size=40,
     )
-    text(
-        s, "Which route fits my\nconditions today?", M, 2.7, 5.13, 1.24, 29, GREEN, True
-    )
-    benefits = [
-        ("Understand the trade-off", "Time, shade, air, heat and UV"),
-        ("See the reason", "Avoided streets + segment colours"),
-        ("Make it yours", "Comfort slider + GPX export"),
+    text(s, "What does the detour buy?", M, 2.72, 10.36, 0.53, 29, GREEN, True)
+    gains = [
+        ("+35 pp", "Shade on the ride"),
+        ("−2.1°C", "Felt temperature / UTCI"),
+        ("+4.9 min", "Travel time / +28%"),
     ]
-    for i, (title, detail) in enumerate(benefits):
-        y = 4.46 + i * 0.99
-        shape(s, M, y + 0.12, 0.1, 0.1, GREEN, kind=MSO_SHAPE.OVAL)
-        text(s, title, 1.0, y, 4.76, 0.45, 23, INK, True)
-        text(s, detail, 1.0, y + 0.52, 4.77, 0.35, 18, MUTED)
-    chip(s, "ACCESSIBLE COLOURS + TEXT", M, 7.68, 4.53)
+    for i, (value, label) in enumerate(gains):
+        x = M + i * 3.5
+        card(s, x, 3.49, 3.33, 1.33, accent=i < 2)
+        text(s, value, x + 0.22, 3.68, 2.89, 0.59, 32, GREEN, True)
+        text(s, label, x + 0.22, 4.36, 2.89, 0.33, 16, MUTED)
+    shape(s, M, 5.1, 10.36, 1.3, "FFF0D8", radius=True)
+    text(s, "PM2.5 dose: 5.1 → 6.0 µg (+18%)", 1.0, 5.3, 9.8, 0.48, 25, INK, True)
+    text(
+        s,
+        "Longer exposure can increase the total inhaled dose.",
+        1.0,
+        5.95,
+        9.8,
+        0.34,
+        18,
+        MUTED,
+    )
+    text(s, "You control the balance.", M, 6.85, 10.36, 0.43, 24, INK, True)
+    text(
+        s,
+        "Comfort slider · street explanations · GPX export",
+        M,
+        7.39,
+        10.36,
+        0.37,
+        19,
+        MUTED,
+    )
+    chip(s, "ACCESSIBLE COLOURS + TEXT", M, 7.91, 4.53)
     screenshot(
         s,
-        "route_details.png",
+        "route_detail.png",
         "Final route details",
-        "Route cards · actual metrics\nTrade-off slider · avoided-street explanation",
-        6.03,
+        "Route cards · actual metrics\nGPX export · avoided-street explanation",
+        11.42,
         2.67,
-        9.25,
-        5.33,
+        3.86,
+        5.57,
     )
     notes(
         s,
@@ -1008,7 +1026,12 @@ def make_deck() -> Presentation:
         "dashed vs solid routes and browser speech synthesis. Selected factors only "
         "change route scoring; the metric cards retain all modelled factors. "
         "This is route planning with informed selection; no clinical validation or "
-        "built-in live navigation is claimed. Screenshot is deliberately pending.",
+        "built-in live navigation is claimed. Screenshot: presentation/route_detail.png, "
+        "supplied by the user and preserved in its portrait aspect ratio. The card values "
+        "show +4.9 min (+28%), +35 percentage points of shade, −2.1°C UTCI, "
+        "−5.0 min high UV, and +18% modelled PM2.5 dose. Show the trade-off explicitly. "
+        "The slider is visible in the main UI screenshot on slide 3; this crop shows the "
+        "route cards, GPX buttons and avoided-street explanation.",
     )
 
     s = new_slide(
@@ -1067,12 +1090,12 @@ def make_deck() -> Presentation:
         INK,
     )
     shape(s, M, 7.21, 14.56, 1.03, MINT, radius=True)
-    text(s, "232", 1.01, 7.36, 1.2, 0.62, 36, GREEN, True)
-    text(s, "tests passed locally", 2.42, 7.54, 3.78, 0.43, 21, INK, True)
+    text(s, "4", 1.01, 7.36, 1.2, 0.62, 36, GREEN, True)
+    text(s, "integrated layers", 2.42, 7.54, 3.78, 0.43, 21, INK, True)
     line(s, 6.31, 7.4, 6.31, 8.03, BORDER, 1.1)
     text(
         s,
-        "Real-module integration verified on fixture graphs.\nFinal city capture needs the processed graph + shade artifacts.",
+        "Real-module integration verified on fixture graphs.\nApplication screenshots show the Kraków demo.",
         6.64,
         7.46,
         8.31,
@@ -1082,9 +1105,9 @@ def make_deck() -> Presentation:
     )
     notes(
         s,
-        "Verified in this workspace: python -m pytest -q returned 232 passed, 5 skipped, "
-        "122 subtests passed. The skipped checks require absent city graph/shade artifacts. "
-        "The full real-module integration chain is tested with small fixture networks in "
+        "Four integrated layers: browser interface, API/application engine, routing/environment "
+        "model, and GIS preprocessing/cache. The full real-module integration chain is tested "
+        "with small fixture networks in "
         "tests/test_integration.py; those are not measured city routes. app/providers.py "
         "makes modules injectable and discloses mock/fallback status through /api/health. "
         "Offline geometry: OSM filtering including bicycle contraflow, deterministic eid "
@@ -1093,8 +1116,9 @@ def make_deck() -> Presentation:
         "Live refresh and stale fallback are implemented; recorded heatwave/smog days "
         "exist as 24-hour JSON scenarios with spatial weather grids. "
         "Optional pipeline/heat_map_build.py implements Landsat 8/9 surface-anomaly "
-        "processing via Microsoft Planetary Computer; edge_heat.npz is absent, "
-        "so its correction is not active here. No machine-learned microclimate model, "
+        "processing via Microsoft Planetary Computer, with edge_heat.npz prepared "
+        "alongside the graph and shade artifacts in data/processed. "
+        "No machine-learned microclimate model, "
         "NSGA-II, streaming evolutionary search, or reproducible city benchmark is claimed.",
     )
 
@@ -1155,74 +1179,70 @@ def make_deck() -> Presentation:
 
 def write_checklist() -> None:
     lines = [
-        "# BiKing — final screenshots",
+        "# BiKing — final presentation",
         "",
         (
-            "The finished presentation already exists at `BiKing_HackYeah.pptx`. "
-            "Missing images have designed placeholders; all slide diagrams are editable."
+            "`BiKing_HackYeah.pptx` contains the completed 10-slide jury deck in 16:9, "
+            "with all three supplied screenshots embedded. Text, metric cards and "
+            "diagrams remain editable in PowerPoint."
         ),
         "",
         (
-            "Put final screenshots in `presentation/assets/screenshots/`. "
-            "The generator automatically contains each image in its existing frame without "
-            "cropping. Existing screenshots are not modified."
-        ),
-        "",
-        "## Capture readiness",
-        "",
-        (
-            "This checkout contains the implemented Flask/Leaflet app, environmental "
-            "scenarios, fuzzy tables and a synthetic shade preview. It currently lacks the "
-            "city-wide `graph.npz`, `edges.parquet`, `edge_coords.npz`, `shade.npy`, "
-            "`shade_bins.json` and `edge_tree_frac.npy` in `data/processed/`. "
-            "Load matching artifacts before capturing real Kraków routing. "
-            "The optional `edge_heat.npz` is also absent."
-        ),
-        "",
-        (
-            "Check `/api/health` before capture. A mock fallback must not be presented "
-            "as real city data. Historical scenario data is legitimate when the selected "
-            "scenario and departure time remain visible. Do not replace missing screenshots "
-            "with generated UI or hand-drawn routes."
+            "The generator reads screenshots from `presentation/` first and falls back "
+            "to `presentation/assets/screenshots/`. Source PNGs are not modified; "
+            "their aspect ratios are preserved. The main screen's browser toolbar is "
+            "hidden with a native PowerPoint crop."
         ),
         "",
     ]
     for spec in SCREENSHOT_SPECS:
-        status = (
-            "Present"
-            if (SCREENSHOTS / spec["filename"]).is_file()
-            else "Missing — placeholder"
-        )
+        path = screenshot_path(spec["filename"])
+        with Image.open(path) as image:
+            width, height = image.size
         lines += [
-            f"## Slide {spec['slide']} — {spec['filename']}",
+            f"## Slide {spec['slide']} — {spec['title']}",
             "",
-            f"- Status: {status}.",
+            f"- Embedded source: `{path.relative_to(ROOT)}` ({width} × {height} px).",
             f"- Visible: {spec['visible']}",
-            f"- Recommended application state: {spec['state']}",
-            f"- Must not be visible: {spec['exclude']}",
-            f"- Why it matters: {spec['why']}",
-            f"- Recommended size: {spec['size']}",
             "",
         ]
     lines += [
-        "## Slide 7 metric cards",
+        "## Demo metrics — slides 7 and 8",
         "",
         (
-            "All current values are `—`. After capturing the final comparison, use "
-            "the exact same `/api/route` response to enter both routes' `time_min`, "
-            "`shade_pct`, `utci_avg_c` and `pm25_dose_ug` in the editable cards. "
-            "BiKing in these cards means More comfortable. Preserve the model "
-            "labels for UTCI and PM2.5 dose. Screenshot replacement does not invent "
-            "or infer metric values."
+            "Values are transcribed at the precision visible in the user-supplied "
+            "`route_detail.png`. BiKing in slide 7's cards means More comfortable. "
+            "The main screen on slide 3 shows a separate slider selection."
         ),
         "",
-        "## Shadow screenshot",
+        "| Metric | Fastest | More comfortable |",
+        "| --- | ---: | ---: |",
+        "| Distance | 4.3 km | 5.5 km |",
+        "| Travel time | 17.3 min | 22.2 min |",
+        "| Shade | 12% | 47% |",
+        "| Felt temperature / UTCI model | 36.9°C | 34.8°C |",
+        "| PM2.5 dose / model estimate | 5.1 µg | 6.0 µg |",
+        "| High UV | 15.8 min | 10.8 min |",
+        "| Poor air | 2.9 min | 2.0 min |",
+        "| Discomfort | 9.0/10 | 8.1/10 |",
         "",
         (
-            "No `shadow_debug.png` is required. Slide 6 is complete with a native "
-            "PowerPoint geometry diagram and the actual ray-marching inequality. "
-            "The existing `data/shade_preview/shade_comparison.png` is synthetic and "
-            "is deliberately not used as a real-city screenshot."
+            "The highlighted trade-off is +4.9 min (+28%), +35 percentage points "
+            "of shade and −2.1°C felt temperature, with +18% modelled PM2.5 dose. "
+            "The dose increase remains explicit. These are single-demo model outputs."
+        ),
+        "",
+        "## View and regenerate",
+        "",
+        "Open `BiKing_HackYeah.pptx` in PowerPoint and start the slideshow.",
+        "Regenerate from the repository root: `python presentation/generate_presentation.py`.",
+        (
+            "The generator requires all three PNGs and validates the saved PPTX archive, "
+            "shape bounds and text layout. `validation.json` records the result."
+        ),
+        (
+            "`previews/contact_sheet.png` and `previews/slide_*.png` are static layout "
+            "previews; they are not Office renders."
         ),
         "",
     ]
@@ -1267,6 +1287,15 @@ def preview_and_validate(prs: Presentation) -> dict:
                 errors.append(f"Slide {num}: object outside slide: {obj.name}")
             if obj.shape_type == MSO_SHAPE_TYPE.PICTURE:
                 im = Image.open(io.BytesIO(obj.image.blob)).convert("RGBA")
+                iw, ih = im.size
+                im = im.crop(
+                    (
+                        round(iw * obj.crop_left),
+                        round(ih * obj.crop_top),
+                        round(iw * (1 - obj.crop_right)),
+                        round(ih * (1 - obj.crop_bottom)),
+                    )
+                )
                 im = im.resize(
                     (max(1, round(w)), max(1, round(h))), Image.Resampling.LANCZOS
                 )
@@ -1428,7 +1457,14 @@ def preview_and_validate(prs: Presentation) -> dict:
         "missing_screenshots": [
             spec["filename"]
             for spec in SCREENSHOT_SPECS
-            if not (SCREENSHOTS / spec["filename"]).is_file()
+            if not screenshot_path(spec["filename"]).is_file()
+        ],
+        "embedded_screenshots": [
+            obj.name.removeprefix("screenshot-")
+            for slide in prs.slides
+            for obj in slide.shapes
+            if obj.shape_type == MSO_SHAPE_TYPE.PICTURE
+            and obj.name.startswith("screenshot-")
         ],
         "office_rendered": False,
         "inspection_method": "Saved PPTX reopened; shape bounds and Arial-compatible text "
@@ -1443,6 +1479,13 @@ def preview_and_validate(prs: Presentation) -> dict:
 
 
 def main() -> None:
+    missing = [
+        spec["filename"]
+        for spec in SCREENSHOT_SPECS
+        if not screenshot_path(spec["filename"]).is_file()
+    ]
+    if missing:
+        raise FileNotFoundError("Missing final screenshots: " + ", ".join(missing))
     for directory in (OUT, SCREENSHOTS, PREVIEWS):
         directory.mkdir(parents=True, exist_ok=True)
     (SCREENSHOTS / ".gitkeep").touch()
