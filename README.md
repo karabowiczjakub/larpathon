@@ -51,6 +51,13 @@ costs.
 
 ### ➡️ **[biking.karpinskisecurecloud.top](https://biking.karpinskisecurecloud.top)**
 
+<p align="center">
+  <img src="docs/img/biking-demo.gif" width="880"
+       alt="BiKing in action: loading the demo route, moving the departure from 14:00 to 18:00, sliding from the fastest route to one 2.5 minutes longer with 61% shade, and switching to dark mode">
+  <br>
+  <sub>The demo route, a later departure, the <i>How much extra time is comfort worth?</i> slider and dark mode.</sub>
+</p>
+
 Nothing to install. A good way to start:
 
 1. Click **▶ Load demo route**: a ride from Plac Nowy in Kazimierz to Plac Centralny in Nowa Huta during the heatwave.
